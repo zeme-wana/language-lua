@@ -289,13 +289,13 @@ llexFile = fmap llex . readFile
 -- Custom Alex wrapper
 ------------------------------------------------------------------------
 
-data AlexPosn = AlexPn !Int  -- absolute character offset
-                       !Int  -- line number
-                       !Int  -- column number
+data AlexPosn = AlexPn !Int  -- ^ absolute character offset
+                       !Int  -- ^ line number
+                       !Int  -- ^ column number
   deriving (Show,Eq)
 
 instance NFData AlexPosn where
-  rnf (AlexPn a b c) = rnf (a,b,c)
+  rnf (AlexPn _ _ _) = ()
 
 type AlexInput = (AlexPosn,     -- current position,
                   Char,         -- previous char

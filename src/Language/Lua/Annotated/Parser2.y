@@ -10,12 +10,12 @@ module Language.Lua.Annotated.Parser2
   , stat
   ) where
 
-import Language.Lua.Token
-import Language.Lua.Annotated.Lexer
-import Language.Lua.Annotated.Syntax
-import Control.Monad
-import Data.Maybe (fromMaybe)
+import Control.Monad (liftM)
 import Prelude hiding (LT,GT,EQ,exp)
+
+import Language.Lua.Token           (LToken(..))
+import Language.Lua.Annotated.Lexer (AlexPosn(..), LTok, llex)
+import Language.Lua.Annotated.Syntax
 
 }
 
@@ -266,6 +266,7 @@ runParser p = runP p Left (\x _ -> Right x)
 
 instance Functor     Parser where fmap    = liftM
 instance Applicative Parser where pure x  = Parser $ \_ k -> k x
+                                  (<*>)   = ap
 instance Monad       Parser where m >>= f = Parser $ \e k ->
                                             runP m e $ \a ->
                                             runP (f a) e k
