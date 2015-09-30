@@ -13,6 +13,7 @@ import           Control.Applicative (Applicative(..))
 import           Control.Monad (ap, liftM, forM_, when)
 import           Data.Char (GeneralCategory(..),generalCategory,isAscii,isSpace)
 import           Data.Word (Word8)
+import           Control.DeepSeq (NFData(..))
 
 import           Language.Lua.Token
 
@@ -292,6 +293,9 @@ data AlexPosn = AlexPn !Int  -- absolute character offset
                        !Int  -- line number
                        !Int  -- column number
   deriving (Show,Eq)
+
+instance NFData AlexPosn where
+  rnf (AlexPn a b c) = rnf (a,b,c)
 
 type AlexInput = (AlexPosn,     -- current position,
                   Char,         -- previous char

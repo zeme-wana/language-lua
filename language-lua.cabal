@@ -85,5 +85,7 @@ Benchmark bench
   build-depends:     base,
                      criterion,
                      directory,
+                     parsec,
+                     deepseq,
                      filepath,
                      language-lua

@@ -1,4 +1,5 @@
 {
+{-# LANGUAGE RankNTypes #-}
 
 module Language.Lua.Annotated.Parser2
   ( parseText
@@ -258,23 +259,22 @@ name :: { Name AlexPosn }
 {
 
 data Parser a = Parser
-  { runP :: [LTok] -> Either LTok (a,[LTok]) }
+  { runP :: forall r. (LTok -> r) -> (a -> [LTok] -> r) -> [LTok] -> r }
 
 runParser :: Parser a -> [LTok] -> Either LTok a
-runParser p xs = fmap fst (runP p xs)
+runParser p = runP p Left (\x _ -> Right x)
 
 instance Functor     Parser where fmap    = liftM
-instance Applicative Parser where pure x  = Parser $ \l -> Right (x,l)
-instance Monad       Parser where m >>= f = Parser $ \x ->
-                                            case runP m x of
-                                              Right (a,y) -> runP (f a) y
-                                              Left e      -> Left e
+instance Applicative Parser where pure x  = Parser $ \_ k -> k x
+instance Monad       Parser where m >>= f = Parser $ \e k ->
+                                            runP m e $ \a ->
+                                            runP (f a) e k
 
 errorP :: LTok -> Parser a
-errorP x = Parser $ \_ -> Left x
+errorP x = Parser $ \e _ _ -> e x
 
 lexerP :: Parser LTok
-lexerP = Parser (\ (l:ls) -> Right (l,ls))
+lexerP = Parser $ \ _ k (l:ls) -> k l ls
 
 sl :: LTok -> (AlexPosn -> a) -> a
 sl (_,x) f = f x
@@ -306,11 +306,11 @@ parseText p xs =
     Left (e, pos) ->
       Left ("lexical error at " ++ showPos pos ++ ": " ++ e)
     Right ys ->
-      case runP p ys of
+      case runParser p ys of
         Left (tok,pos) ->
           Left ("parser error at " ++ showPos pos ++ ", unexpected " ++
                                 show tok)
-        Right (chunk,_) -> Right chunk
+        Right chunk -> Right chunk
 
 
 }
