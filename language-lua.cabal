@@ -39,6 +39,7 @@ Library
                      Language.Lua.Annotated
                      Language.Lua.Annotated.Syntax
                      Language.Lua.Annotated.Parser
+                     Language.Lua.Annotated.Parser2
                      Language.Lua.Annotated.Lexer
                      Language.Lua.Annotated.Simplify
                      Text.Parsec.LTok
