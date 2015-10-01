@@ -20,21 +20,18 @@ import           Language.Lua.Token
 
 }
 
-$space = [ \ \t ]                        -- horizontal white space
-
 $letter      = [a-zA-Z_]                 -- first letter of variables
 $identletter = [a-zA-Z_0-9]              -- letters for rest of variables
 
 $digit    = 0-9                          -- decimal digits
 $hexdigit = [0-9a-fA-F]                  -- hexadecimal digits
 
-$dqstr    = \0-\255 # [ \" \n \\ ]       -- valid character in a string literal with dquotes
-$sqstr    = \0-\255 # [ \' \n \\ ]       -- valid character in a string literal with quotes
-$longstr  = \0-\255                      -- valid character in a long string
+$dqstr    = . # [ \" \\ ]       -- valid character in a string literal with dquotes
+$sqstr    = . # [ \' \\ ]       -- valid character in a string literal with quotes
+$longstr  = [ . \n ]                     -- valid character in a long string
 
 -- escape characters
-@charescd  = \\ ([ntvbrfa\\'"] | $digit{1,3} | x$hexdigit{2} | u\{$hexdigit{1,}\} | \n | z [$space \n\r\f\v]*)
-@charescs  = \\ ([ntvbrfa\\"'] | $digit{1,3} | x$hexdigit{2} | u\{$hexdigit{1,}\} | \n | z [$space \n\r\f\v]*)
+@charesc   = \\ ([ntvbrfa\\"'] | $digit{1,3} | x$hexdigit{2} | u\{$hexdigit+\} | \n | z $white*)
 
 @digits    = $digit+
 @hexdigits = $hexdigit+
@@ -50,8 +47,34 @@ tokens :-
 
     <0> $white+  ;
 
-    <0> $letter $identletter* { ident }
+    -- keywords
+    <0> "and"      { tok LTokAnd }
+    <0> "break"    { tok LTokBreak }
+    <0> "do"       { tok LTokDo }
+    <0> "else"     { tok LTokElse }
+    <0> "elseif"   { tok LTokElseIf }
+    <0> "end"      { tok LTokEnd }
+    <0> "false"    { tok LTokFalse }
+    <0> "for"      { tok LTokFor }
+    <0> "function" { tok LTokFunction }
+    <0> "goto"     { tok LTokGoto }
+    <0> "if"       { tok LTokIf }
+    <0> "in"       { tok LTokIn }
+    <0> "local"    { tok LTokLocal }
+    <0> "nil"      { tok LTokNil }
+    <0> "not"      { tok LTokNot }
+    <0> "or"       { tok LTokOr }
+    <0> "repeat"   { tok LTokRepeat }
+    <0> "return"   { tok LTokReturn }
+    <0> "then"     { tok LTokThen }
+    <0> "true"     { tok LTokTrue }
+    <0> "until"    { tok LTokUntil }
+    <0> "while"    { tok LTokWhile }
 
+    -- identifiers
+    <0> $letter $identletter* { tokWValue LTokIdent }
+
+    -- number literals
     <0> @digits                              { tokWValue LTokNum }
     <0> @digits @exppart                     { tokWValue LTokNum }
     <0> @mantpart @exppart?                  { tokWValue LTokNum }
@@ -59,19 +82,21 @@ tokens :-
     <0> @hexprefix @hexdigits @expparthex    { tokWValue LTokNum }
     <0> @hexprefix @mantparthex @expparthex? { tokWValue LTokNum }
 
-    <0> \"($dqstr|@charescd)*\" { \(posn,_,s) l -> return $ mkString s l posn }
-    <0> \'($sqstr|@charescs)*\' { \(posn,_,s) l -> return $ mkString s l posn }
+    -- string literals
+    <0> \"($dqstr|@charesc)*\" { tokWValue LTokSLit }
+    <0> \'($sqstr|@charesc)*\' { tokWValue LTokSLit }
 
     -- long strings
-    <0> \[ \=* \[            { enterString `andBegin` state_string }
-    <state_string> \] \=* \] { testAndEndString }
+    <0> \[ =* \[            { enterString `andBegin` state_string }
+    <state_string> \] =* \] { testAndEndString }
     <state_string> $longstr  { addCharToString }
 
     <0> "--"                      { enterComment `andBegin` state_comment }
-    <state_comment> . # \n        ;
+    <state_comment> .             ;
     <state_comment> \n            { testAndEndComment }
     <state_comment> \[ \=* \[ \n? { enterString `andBegin` state_string }
 
+    -- operators
     <0> "+"   { tok LTokPlus }
     <0> "-"   { tok LTokMinus }
     <0> "*"   { tok LTokStar }
@@ -197,10 +222,6 @@ testAndEndString (_,_,s) len = do
                 let eqs = replicate (startlen-2) '=' -- 2 were the [s
                 return (LTokSLit ("["++eqs++"["++reverse val++"]"++eqs++"]"), posn)
 
-{-# INLINE mkString #-}
-mkString :: String -> Int -> SourcePos -> LTok
-mkString s l posn = (LTokSLit (take l s), posn)
-
 -- | Lua token with position information.
 type LTok = (LToken, SourcePos)
 
@@ -212,34 +233,6 @@ tokWValue tok (posn,_,s) len = return (tok (take len s), posn)
 
 tok :: LToken -> AlexInput -> Int -> Alex LTok
 tok t (posn,_,_) _ = return (t, posn)
-
-{-# INLINE ident #-}
-ident :: AlexAction LTok
-ident (posn,_,s) len = return (tok, posn)
-  where tok = case (take len s) of
-          "and"      -> LTokAnd
-          "break"    -> LTokBreak
-          "do"       -> LTokDo
-          "else"     -> LTokElse
-          "elseif"   -> LTokElseIf
-          "end"      -> LTokEnd
-          "false"    -> LTokFalse
-          "for"      -> LTokFor
-          "function" -> LTokFunction
-          "goto"     -> LTokGoto
-          "if"       -> LTokIf
-          "in"       -> LTokIn
-          "local"    -> LTokLocal
-          "nil"      -> LTokNil
-          "not"      -> LTokNot
-          "or"       -> LTokOr
-          "repeat"   -> LTokRepeat
-          "return"   -> LTokReturn
-          "then"     -> LTokThen
-          "true"     -> LTokTrue
-          "until"    -> LTokUntil
-          "while"    -> LTokWhile
-          ident'     -> LTokIdent ident'
 
 alexEOF :: Alex LTok
 alexEOF = return (LTokEof, SourcePos "" (-1) (-1))
