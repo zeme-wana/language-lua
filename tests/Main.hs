@@ -3,7 +3,6 @@
 
 module Main where
 
-import qualified Language.Lua.Annotated          as A
 import qualified Language.Lua.Annotated.Lexer    as L
 import qualified Language.Lua.Annotated.Parser   as AP
 import qualified Language.Lua.Parser             as P
@@ -138,17 +137,27 @@ stringTests = testGroup "String tests"
     [ testCase
         "Equal strings from 5.3.1 reference manual"
         (do let file = "tests/strings"
-            contents <- readFile file
-            case parseExps contents of
-              Nothing -> assertFailure "bad tests/strings"
-              Just exps -> do
-                assertBool "Wrong number of strings parsed" (length exps == 5)
-                case asStrings exps of
-                  Nothing -> assertFailure "Not all strings were strings"
-                  Just strs ->
-                    forM_ strs $ \str ->
-                        assertEqual "String not same"
-                                expected $ interpretStringLiteral str)
+            res <- P.parseFile file
+            stats <- case res of
+                       Left e -> assertFailure (show e) >> undefined
+                       Right (Block stats _) -> return stats
+
+            let extract (Assign _ [String s]) = Just s
+                extract _                     = Nothing
+
+            strs <- case traverse extract stats of
+                      Nothing -> assertFailure "couldn't extract strings" >> undefined
+                      Just strs -> return strs
+
+            assertBool "Wrong number of strings parsed" (length strs == 5)
+
+            let expected = Just "alo\n123\""
+            forM_ strs $ \str ->
+               assertEqual
+                 "String not same"
+                 expected
+                 (interpretStringLiteral str))
+
     , testCase
         "Round-trip through the pretty-printer"
        (do let file = "tests/string-literal-roundtrip.lua"
@@ -162,12 +171,6 @@ stringTests = testGroup "String tests"
                         -- text file lines always end in a newline
                         -- but the pretty printer doesn't know this
     ]
-  where
-    expected = Just "alo\n123\""
-    asString (String s) = Just s
-    asString _          = Nothing
-
-    asStrings = mapM asString
 
 numberTests :: TestTree
 numberTests = testGroup "Number tests"

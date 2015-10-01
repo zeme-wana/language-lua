@@ -11,7 +11,7 @@ import           Control.Monad                   (liftM)
 import           Prelude                         hiding (exp)
 
 import qualified Language.Lua.Annotated.Parser   as A
-import           Language.Lua.Annotated.Lexer (LTok,SourcePos)
+import           Language.Lua.Annotated.Lexer (SourcePos)
 import           Language.Lua.Annotated.Simplify
 import           Language.Lua.Syntax
 
