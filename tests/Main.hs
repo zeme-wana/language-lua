@@ -5,14 +5,12 @@ module Main where
 
 import qualified Language.Lua.Annotated          as A
 import qualified Language.Lua.Annotated.Lexer    as L
-import qualified Language.Lua.Annotated.Simplify as S
+import qualified Language.Lua.Annotated.Parser   as AP
 import qualified Language.Lua.Parser             as P
-import           Language.Lua.PrettyPrinter      (pprint)
+import qualified Language.Lua.PrettyPrinter      as PP
 import           Language.Lua.StringLiteral
 import           Language.Lua.Syntax
 import qualified Language.Lua.Token              as T
-
-import qualified Text.Parsec                     as P
 
 import           Test.QuickCheck                 hiding (Args)
 import           Test.Tasty
@@ -45,17 +43,10 @@ unitTests = testGroup "Unit tests"
 propertyTests :: TestTree
 propertyTests = testGroup "Property tests" [{-genPrintParse-}]
 
-parseExps :: String -> String -> Either P.ParseError [A.Exp P.SourcePos]
-parseExps file contents =
-  case L.llex contents of
-    Left (msg,pos) -> P.runParser (reportLexError msg pos) () file []
-    Right xs -> P.runParser (many A.exp) () file xs
-
-reportLexError :: Monad m => String -> L.AlexPosn -> P.ParsecT s u m a
-reportLexError msg (L.AlexPn _ line column) =
-  do pos <- P.getPosition
-     P.setPosition (pos `P.setSourceLine` line `P.setSourceColumn` column)
-     fail ("lexical error: " ++ msg)
+parseExps :: String -> Maybe [Exp]
+parseExps contents =
+  mapM (either (const Nothing) Just . AP.parseText P.exp)
+       (lines contents)
 
 literalDecodingTests :: TestTree
 literalDecodingTests = testGroup "Literal codec tests"
@@ -148,9 +139,9 @@ stringTests = testGroup "String tests"
         "Equal strings from 5.3.1 reference manual"
         (do let file = "tests/strings"
             contents <- readFile file
-            case parseExps file contents of
-              Left parseErr -> assertFailure (show parseErr)
-              Right exps -> do
+            case parseExps contents of
+              Nothing -> assertFailure "bad tests/strings"
+              Just exps -> do
                 assertBool "Wrong number of strings parsed" (length exps == 5)
                 case asStrings exps of
                   Nothing -> assertFailure "Not all strings were strings"
@@ -167,7 +158,7 @@ stringTests = testGroup "String tests"
              Right x -> assertEqual
                           "pretty printer didn't preserve"
                           contents
-                          (show (pprint x) ++ "\n"))
+                          (show (PP.pprint x) ++ "\n"))
                         -- text file lines always end in a newline
                         -- but the pretty printer doesn't know this
     ]
@@ -176,7 +167,7 @@ stringTests = testGroup "String tests"
     asString (String s) = Just s
     asString _          = Nothing
 
-    asStrings = mapM (asString . S.sExp)
+    asStrings = mapM asString
 
 numberTests :: TestTree
 numberTests = testGroup "Number tests"
@@ -184,11 +175,11 @@ numberTests = testGroup "Number tests"
         "Numbers from 5.3.1 reference manual"
         (do let file = "tests/numbers"
             contents <- readFile file
-            case parseExps file contents of
-              Left parseErr -> assertFailure (show parseErr)
-              Right exps -> do
+            case parseExps contents of
+              Nothing -> assertFailure "bad tests/numbers"
+              Just exps -> do
                 assertBool "Wrong number of numbers parsed" (length exps == 9)
-                forM_ exps (assertNumber . S.sExp))
+                forM_ exps assertNumber)
     ]
   where
     assertNumber :: Exp -> Assertion
@@ -198,7 +189,7 @@ numberTests = testGroup "Number tests"
 regressions :: TestTree
 regressions = testGroup "Regression tests"
     [ testCase "Lexing comment with text \"EOF\" in it" $
-        assertEqual "Lexing is wrong" (Right [(T.LTokEof, L.AlexPn (-1) (-1) (-1))]) (L.llex "--EOF")
+        assertEqual "Lexing is wrong" (Right [(T.LTokEof, L.SourcePos "" (-1) (-1))]) (L.llex "--EOF")
     , testCase "Binary/unary operator parsing/printing" $ do
         pp "2^3^2 == 2^(3^2)"
         pp "2^3*4 == (2^3)*4"
@@ -233,16 +224,17 @@ regressions = testGroup "Regression tests"
     , testCase "explist parsers shouldn't accept empty list of expressions in global declarations" $
         assertParseFailure (P.parseText P.stat "x =")
     , testCase "empty list of return values should be accpeted" $
-        assertEqual "Parsed wrong" (Right $ Block [] (Just [])) (P.parseText P.chunk "return")
+        assertEqual "Parsed wrong" (Right $ Block [] (Just [])) (AP.parseText P.chunk "return")
     ]
   where
     pp :: String -> Assertion
     pp expr =
-      case P.parseText P.exp expr of
+      case AP.parseText P.exp expr of
         Left err -> assertFailure $ "Parsing failed: " ++ show err
         Right expr' ->
           assertEqual "Printed string is not equal to original one modulo whitespace"
-            (filter (not . isSpace) expr) (filter (not . isSpace) (show $ pprint expr'))
+            (filter (not . isSpace) expr)
+            (filter (not . isSpace) (show (PP.pprint expr')))
 
     assertParseFailure (Left _parseError) = return ()
     assertParseFailure (Right ret) = assertFailure $ "Unexpected parse: " ++ show ret
@@ -273,7 +265,7 @@ genPrintParse =
     prop = forAll arbitrary printAndParseEq
 
     printAndParseEq :: Block -> Property
-    printAndParseEq b = Right b === (P.parseText P.chunk . show . pprint) b
+    printAndParseEq b = Right b === AP.parseText P.chunk (show (PP.pprint b))
 
 -- * Arbitrary instances
 

@@ -1,20 +1,21 @@
 {
 {-# LANGUAGE RankNTypes #-}
 
-module Language.Lua.Annotated.Parser2
+module Language.Lua.Annotated.Parser
   ( parseText
-  , runParser
+  , parseNamedText
+  , parseFile
   , Parser
   , chunk
   , exp
   , stat
   ) where
 
-import Control.Monad (liftM)
+import Control.Monad (liftM,ap)
 import Prelude hiding (LT,GT,EQ,exp)
 
 import Language.Lua.Token           (LToken(..))
-import Language.Lua.Annotated.Lexer (AlexPosn(..), LTok, llex)
+import Language.Lua.Annotated.Lexer (SourcePos(..), LTok, llexNamed)
 import Language.Lua.Annotated.Syntax
 
 }
@@ -128,10 +129,10 @@ revSepBy1(p,sep) : p                      { [$1]       }
 
 block : many(stat) opt(retstat) { Block (blockAnn $1 $2) $1 $2 }
 
-retstat :: { [Exp AlexPosn] }
+retstat :: { [Exp SourcePos] }
   : 'return' sepBy(exp,',') opt(';') { $2 }
 
-stat :: { Stat AlexPosn }
+stat :: { Stat SourcePos }
   : ';'                                                   { sl $1 EmptyStat }
   | varlist '=' explist                                   { sp (head $1) Assign $1 $3 }
   | functioncall %prec STAT                               { sp $1 FunCall $1 }
@@ -157,32 +158,32 @@ varlist  : sepBy1(var,  ',') { $1 }
 explist  : sepBy1(exp,  ',') { $1 }
 namelist : sepBy1(name, ',') { $1 }
 
-prefixexp ::                  { PrefixExp AlexPosn }
+prefixexp ::                  { PrefixExp SourcePos }
   : var                       { sp $1 PEVar $1     }
   | functioncall %prec PREFIX { sp $1 PEFunCall $1 }
   | '(' exp ')'               { sl $1 Paren $2     }
 
-functioncall ::               { FunCall AlexPosn          }
+functioncall ::               { FunCall SourcePos          }
   : prefixexp            args { sp $1 NormalFunCall $1 $2 }
   | prefixexp methodname args { sp $1 MethodCall $1 $2 $3 }
 
-funcname ::                               { FunName AlexPosn       }
+funcname ::                               { FunName SourcePos       }
   : name many(dottedname) opt(methodname) { sp $1 FunName $1 $2 $3 }
 
 dottedname : '.' name  { $2 }
 methodname : ':' name  { $2 }
 
-var ::                    { Var AlexPosn           }
+var ::                    { Var SourcePos           }
   : name                  { sp $1 VarName $1       }
   | prefixexp '[' exp ']' { sp $1 Select $1 $3     }
   | prefixexp '.' name    { sp $1 SelectName $1 $3 }
 
-exp ::                     { Exp AlexPosn             }
+exp ::                     { Exp SourcePos             }
   : 'nil'                  { sl $1 Nil                }
   | 'false'                { sl $1 Bool False         }
   | 'true'                 { sl $1 Bool True          }
-  | numeral                { sl $1 Number (getNum $1) }
-  | literalString          { sl $1 String (getStr $1) }
+  | numeral                { sl $1 Number (getString $1) }
+  | literalString          { sl $1 String (getString $1) }
   | '...'                  { sl $1 Vararg             }
   | functiondef            { sp $1 EFunDef $1         }
   | prefixexp %prec EXP    { sp $1 PrefixExp $1       }
@@ -215,32 +216,32 @@ exp ::                     { Exp AlexPosn             }
   | 'not' exp                { sl $1 Unop (sl $1 Not)        $2 }
   | '#'  exp                 { sl $1 Unop (sl $1 Len)        $2 }
 
-args ::                    { FunArg AlexPosn             }
+args ::                    { FunArg SourcePos             }
   : '(' sepBy(exp,',') ')' { sl $1 Args $2               }
   | tableconstructor       { sp $1 TableArg $1           }
-  | literalString          { sl $1 StringArg (getStr $1) }
+  | literalString          { sl $1 StringArg (getString $1) }
 
-functiondef :: { FunDef AlexPosn }
+functiondef :: { FunDef SourcePos }
   : 'function' funcbody { sl $1 FunDef $2 }
 
-funcbody :: { FunBody AlexPosn }
+funcbody :: { FunBody SourcePos }
   : '(' parlist ')' block 'end' { sl $1 FunBody (fst $2) (snd $2) $4 }
 
-parlist :: { ([Name AlexPosn],Maybe AlexPosn) }
+parlist :: { ([Name SourcePos],Maybe SourcePos) }
   : parnames1 ',' '...' { (reverse $1,Just (snd $3) ) }
   | parnames1           { (reverse $1,Nothing) }
   | '...'               { ([],Just (snd $1))          }
   |                     { ([],Nothing)         }
 
-parnames1 ::           { [Name AlexPosn] }
+parnames1 ::           { [Name SourcePos] }
   : name               { [$1]            }
   | parnames1 ',' name { $3 : $1         }
 
-tableconstructor ::                 { Table AlexPosn }
+tableconstructor ::                 { Table SourcePos }
   : '{'                         '}' { sl $1 Table [] }
   | '{' fieldlist opt(fieldsep) '}' { sl $1 Table (reverse $2) }
 
-fieldlist ::                  { [TableField AlexPosn] }
+fieldlist ::                  { [TableField SourcePos] }
   : fieldlist fieldsep field  { $3 : $1 }
   | field                     { [$1]    }
 
@@ -248,13 +249,13 @@ fieldsep
   : ','     { () }
   | ';'     { () }
 
-field :: { TableField AlexPosn }
+field :: { TableField SourcePos }
   : '[' exp ']' '=' exp { sl $1 ExpField $2 $5 }
   | name        '=' exp { sp $1 NamedField $1 $3 }
   |                 exp { sp $1 Field $1 }
 
-name :: { Name AlexPosn }
-  : ident { sl $1 Name (getIdent $1) }
+name :: { Name SourcePos }
+  : ident { sl $1 Name (getString $1) }
 
 {
 
@@ -277,41 +278,54 @@ errorP x = Parser $ \e _ _ -> e x
 lexerP :: Parser LTok
 lexerP = Parser $ \ _ k (l:ls) -> k l ls
 
-sl :: LTok -> (AlexPosn -> a) -> a
+sl :: LTok -> (SourcePos -> a) -> a
 sl (_,x) f = f x
 
-sp :: Annotated p => p AlexPosn -> (AlexPosn -> a) -> a
+sp :: Annotated p => p SourcePos -> (SourcePos -> a) -> a
 sp x f = f (ann x)
 
-getIdent :: LTok -> String
-getIdent (LTokIdent x, _) = x
+getString :: LTok -> String
+getString (LTokIdent x, _) = x
+getString (LTokSLit x, _) = x
+getString (LTokNum x, _) = x
+getString _ = error "getString used on wrong token type"
 
-getStr :: LTok -> String
-getStr (LTokSLit x, _) = x
-
-getNum :: LTok -> String
-getNum (LTokNum x, _) = x
-
-blockAnn :: [Stat AlexPosn] -> Maybe [Exp AlexPosn] -> AlexPosn
+blockAnn :: [Stat SourcePos] -> Maybe [Exp SourcePos] -> SourcePos
 blockAnn xs mbys =
   case map ann xs ++ maybe [] (map ann) mbys of
     a : _ -> a
-    _     -> AlexPn 0 1 1
+    _     -> SourcePos "" 1 1
 
-showPos :: AlexPosn -> String
-showPos (AlexPn _ l c) = "line: " ++ show l ++ " column: " ++ show c
+showPos :: SourcePos -> String
+showPos (SourcePos _ l c) = "line: " ++ show l ++ " column: " ++ show c
 
-parseText :: Parser a -> String -> Either String a
-parseText p xs =
-  case llex xs of
+-- | Runs Lua lexer before parsing. Use @parseNamedText stat "name"@ to parse
+-- statements, and @parseText exp "name"@ to parse expressions.
+parseNamedText ::
+  Parser a ->
+  String {- ^ chunk -} ->
+  String {- ^ name -} ->
+  Either (String, SourcePos) a
+parseNamedText p n xs =
+  case llexNamed xs n of
     Left (e, pos) ->
-      Left ("lexical error at " ++ showPos pos ++ ": " ++ e)
+      Left ("lexical error: " ++ e, pos)
     Right ys ->
       case runParser p ys of
         Left (tok,pos) ->
-          Left ("parser error at " ++ showPos pos ++ ", unexpected " ++
-                                show tok)
+          Left ("parser error: unexpected " ++ show tok, pos)
         Right chunk -> Right chunk
 
+-- | Runs Lua lexer before parsing. Use @parseText stat@ to parse
+-- statements, and @parseText exp@ to parse expressions.
+parseText ::
+  Parser a ->
+  String {- ^ chunk -} ->
+  Either (String, SourcePos) a
+parseText p = parseNamedText p "=<string>"
+
+-- | Parse a Lua file. You can use @parseText chunk@ to parse a file from a string.
+parseFile :: FilePath -> IO (Either (String, SourcePos) (Block SourcePos))
+parseFile fp = fmap (parseNamedText chunk fp) (readFile fp)
 
 }

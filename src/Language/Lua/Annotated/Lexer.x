@@ -4,9 +4,10 @@
 
 module Language.Lua.Annotated.Lexer
   ( llex
+  , llexNamed
   , llexFile
   , LTok
-  , AlexPosn(..)
+  , SourcePos(..)
   ) where
 
 import           Control.Applicative (Applicative(..))
@@ -109,7 +110,7 @@ tokens :-
 
 data AlexUserState = AlexUserState { stringState     :: !Bool
                                    , stringDelimLen  :: !Int
-                                   , stringPosn      :: !AlexPosn
+                                   , stringPosn      :: !SourcePos
                                    , stringValue     :: !String
                                    -- comments
                                    , commentState    :: !Bool
@@ -118,12 +119,12 @@ data AlexUserState = AlexUserState { stringState     :: !Bool
 alexInitUserState :: AlexUserState
 alexInitUserState = AlexUserState { stringState     = False
                                   , stringDelimLen  = 0
-                                  , stringPosn      = AlexPn 0 0 0
+                                  , stringPosn      = SourcePos "" 0 0
                                   , stringValue     = ""
                                   , commentState    = False
                                   }
 
-initString :: Int -> AlexPosn -> Alex ()
+initString :: Int -> SourcePos -> Alex ()
 initString i posn = Alex $ \s -> Right(s{alex_ust=(alex_ust s){stringState=True,stringValue="",stringDelimLen=i,stringPosn=posn}}, ())
 
 initComment :: Alex ()
@@ -132,7 +133,7 @@ initComment = Alex $ \s -> Right(s{alex_ust=(alex_ust s){commentState=True}}, ()
 getStringDelimLen :: Alex Int
 getStringDelimLen = Alex $ \s@AlexState{alex_ust=ust} -> Right (s, stringDelimLen ust)
 
-getStringPosn :: Alex AlexPosn
+getStringPosn :: Alex SourcePos
 getStringPosn = Alex $ \s@AlexState{alex_ust=ust} -> Right (s, stringPosn ust)
 
 getStringValue :: Alex String
@@ -197,11 +198,11 @@ testAndEndString (_,_,s) len = do
                 return (LTokSLit ("["++eqs++"["++reverse val++"]"++eqs++"]"), posn)
 
 {-# INLINE mkString #-}
-mkString :: String -> Int -> AlexPosn -> LTok
+mkString :: String -> Int -> SourcePos -> LTok
 mkString s l posn = (LTokSLit (take l s), posn)
 
 -- | Lua token with position information.
-type LTok = (LToken, AlexPosn)
+type LTok = (LToken, SourcePos)
 
 type AlexAction result = AlexInput -> Int -> Alex result
 
@@ -241,7 +242,7 @@ ident (posn,_,s) len = return (tok, posn)
           ident'     -> LTokIdent ident'
 
 alexEOF :: Alex LTok
-alexEOF = return (LTokEof, AlexPn (-1) (-1) (-1))
+alexEOF = return (LTokEof, SourcePos "" (-1) (-1))
 
 alexMonadScan' :: Alex LTok
 alexMonadScan' = do
@@ -251,7 +252,7 @@ alexMonadScan' = do
     AlexEOF -> do cs <- getCommentState
                   when cs endString
                   alexEOF
-    AlexError ((AlexPn _ line col),ch,_) -> alexError ("at char " ++ [ch])
+    AlexError ((SourcePos _ line col),ch,_) -> alexError ("at char " ++ [ch])
     AlexSkip  inp' len -> do
         alexSetInput inp'
         alexMonadScan'
@@ -259,8 +260,8 @@ alexMonadScan' = do
         alexSetInput inp'
         action inp len
 
-scanner :: String -> Either (String,AlexPosn) [LTok]
-scanner str = runAlex str loop
+scanner :: String -> String -> Either (String,SourcePos) [LTok]
+scanner name str = runAlex name str loop
   where loop = do
           t@(tok, _) <- alexMonadScan'
           if tok == LTokEof
@@ -277,44 +278,51 @@ dropSpecialComment ('#':xs) = dropWhile (/='\n') xs
 dropSpecialComment xs = xs
 -- Newline is preserved in order to ensure that line numbers stay correct
 
--- | Lua lexer.
-llex :: String -> Either (String,AlexPosn) [LTok]
-llex = scanner . dropSpecialComment
+-- | Lua lexer with default @=<string>@ name.
+llex :: String {- ^ chunk -} -> Either (String,SourcePos) [LTok]
+llex chunk = llexNamed chunk "=<string>"
+
+-- | Lua lexer with explicit name.
+llexNamed ::
+  String {- ^ chunk -} ->
+  String {- ^ name -} ->
+  Either (String,SourcePos) [LTok]
+llexNamed chunk name = scanner name (dropSpecialComment chunk)
 
 -- | Run Lua lexer on a file.
-llexFile :: FilePath -> IO (Either (String,AlexPosn) [LTok])
-llexFile = fmap llex . readFile
+llexFile :: FilePath -> IO (Either (String,SourcePos) [LTok])
+llexFile fp = fmap (`llexNamed` fp) (readFile fp)
 
 ------------------------------------------------------------------------
 -- Custom Alex wrapper
 ------------------------------------------------------------------------
 
-data AlexPosn = AlexPn !Int  -- ^ absolute character offset
-                       !Int  -- ^ line number
-                       !Int  -- ^ column number
+data SourcePos = SourcePos String -- ^ filename
+                       {-# UNPACK #-}!Int  -- ^ line number
+                       {-# UNPACK #-}!Int  -- ^ column number
   deriving (Show,Eq)
 
-instance NFData AlexPosn where
-  rnf (AlexPn _ _ _) = ()
+instance NFData SourcePos where
+  rnf (SourcePos _ _ _) = ()
 
-type AlexInput = (AlexPosn,     -- current position,
+type AlexInput = (SourcePos,     -- current position,
                   Char,         -- previous char
                   String)       -- current input string
 
-alexStartPos :: AlexPosn
-alexStartPos = AlexPn 0 1 1
+startPos :: String -> SourcePos
+startPos n = SourcePos n 1 1
 
 alexGetByte :: AlexInput -> Maybe (Word8,AlexInput)
 alexGetByte (_,_,[]) = Nothing
 alexGetByte (p,_,c:cs) = Just (byteForChar c,(p',c,cs))
   where p' = alexMove p c
 
-alexMove :: AlexPosn -> Char -> AlexPosn
-alexMove (AlexPn ix line column) c =
+alexMove :: SourcePos -> Char -> SourcePos
+alexMove (SourcePos name line column) c =
   case c of
-    '\t' -> AlexPn (ix + 1) line (((column + 7) `div` 8) * 8 + 1)
-    '\n' -> AlexPn (ix + 1) (line + 1) 1
-    _    -> AlexPn (ix + 1) line (column + 1)
+    '\t' -> SourcePos name line (((column + 7) `div` 8) * 8 + 1)
+    '\n' -> SourcePos name (line + 1) 1
+    _    -> SourcePos name line (column + 1)
 
 ------------------------------------------------------------------------
 -- Embed all of unicode, kind of, in a single byte!
@@ -366,7 +374,7 @@ alexSetStartCode :: Int -> Alex ()
 alexSetStartCode sc = Alex $ \s -> Right (s{alex_scd=sc}, ())
 
 data AlexState = AlexState {
-        alex_pos :: !AlexPosn,  -- position at current input location
+        alex_pos :: !SourcePos,  -- position at current input location
         alex_inp :: String,     -- the current input
         alex_chr :: !Char,      -- the character before the input
         alex_scd :: !Int        -- the current startcode
@@ -377,9 +385,9 @@ data AlexState = AlexState {
 
 -- Compile with -funbox-strict-fields for best results!
 
-runAlex :: String -> Alex a -> Either (String,AlexPosn) a
-runAlex input (Alex f)
-   = case f (AlexState {alex_pos = alexStartPos,
+runAlex :: String -> String -> Alex a -> Either (String,SourcePos) a
+runAlex name input (Alex f)
+   = case f (AlexState {alex_pos = startPos name,
                         alex_inp = input,
                         alex_chr = '\n',
 
@@ -388,7 +396,7 @@ runAlex input (Alex f)
                         alex_scd = 0}) of Left e -> Left e
                                           Right ( _, a ) -> Right a
 
-newtype Alex a = Alex { unAlex :: AlexState -> Either (String,AlexPosn) (AlexState, a) }
+newtype Alex a = Alex { unAlex :: AlexState -> Either (String,SourcePos) (AlexState, a) }
 
 alexError :: String -> Alex a
 alexError message = Alex $ \s -> Left (message, alex_pos s)
