@@ -79,9 +79,8 @@ dropSpecialComment xs = xs
 -- Custom Lexer wrapper
 ------------------------------------------------------------------------
 
-data SourcePos = SourcePos String -- ^ filename
-                       {-# UNPACK #-}!Int  -- ^ line number
-                       {-# UNPACK #-}!Int  -- ^ column number
+data SourcePos = SourcePos String {-# UNPACK #-}!Int {-# UNPACK #-}!Int
+                 -- ^ filename line column
   deriving (Show,Eq)
 
 instance NFData SourcePos where
@@ -126,10 +125,11 @@ data AlexState = AlexState {
 data Mode
   = NormalMode
   | CommentMode
-  | QuoteMode SourcePos -- ^ start
-              Int       -- ^ delim length
-              Bool      -- ^ is comment
-              String    -- ^ body
+  | QuoteMode SourcePos -- start
+              Int       -- delim length
+              Bool      -- is comment
+              String    -- body
+                -- ^ start delimlen iscomment body
 
 -- Compile with -funbox-strict-fields for best results!
 
