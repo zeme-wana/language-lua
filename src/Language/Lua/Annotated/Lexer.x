@@ -87,14 +87,15 @@ tokens :-
     <0> \'($sqstr|@charesc)*\' { tokWValue LTokSLit }
 
     -- long strings
-    <0> \[ =* \[            { enterString `andBegin` state_string }
+    <0> \[ =* \[            { enterString }
     <state_string> \] =* \] { testAndEndString }
-    <state_string> $longstr  { addCharToString }
+    <state_string> $longstr { addCharToString }
 
-    <0> "--"                      { enterComment `andBegin` state_comment }
-    <state_comment> .             ;
-    <state_comment> \n            { testAndEndComment }
-    <state_comment> \[ \=* \[ \n? { enterString `andBegin` state_string }
+    -- comments
+    <0> "--" \[ =* \[       { enterLongComment }
+    <0> "--"                { enterComment }
+    <state_comment> .       ;
+    <state_comment> \n      { endComment }
 
     -- operators
     <0> "+"   { tok LTokPlus }
@@ -133,93 +134,59 @@ tokens :-
 
 {
 
-data AlexUserState = AlexUserState { stringState     :: !Bool
-                                   , stringDelimLen  :: !Int
-                                   , stringPosn      :: !SourcePos
-                                   , stringValue     :: !String
-                                   -- comments
-                                   , commentState    :: !Bool
-                                   }
+getMode :: Alex Mode
+getMode = Alex $ \s@AlexState{alex_mode=mode} -> Right (s, mode)
 
-alexInitUserState :: AlexUserState
-alexInitUserState = AlexUserState { stringState     = False
-                                  , stringDelimLen  = 0
-                                  , stringPosn      = SourcePos "" 0 0
-                                  , stringValue     = ""
-                                  , commentState    = False
-                                  }
-
-initString :: Int -> SourcePos -> Alex ()
-initString i posn = Alex $ \s -> Right(s{alex_ust=(alex_ust s){stringState=True,stringValue="",stringDelimLen=i,stringPosn=posn}}, ())
-
-initComment :: Alex ()
-initComment = Alex $ \s -> Right(s{alex_ust=(alex_ust s){commentState=True}}, ())
-
-getStringDelimLen :: Alex Int
-getStringDelimLen = Alex $ \s@AlexState{alex_ust=ust} -> Right (s, stringDelimLen ust)
-
-getStringPosn :: Alex SourcePos
-getStringPosn = Alex $ \s@AlexState{alex_ust=ust} -> Right (s, stringPosn ust)
-
-getStringValue :: Alex String
-getStringValue = Alex $ \s@AlexState{alex_ust=ust} -> Right (s, stringValue ust)
-
-getStringState :: Alex Bool
-getStringState = Alex $ \s@AlexState{alex_ust=ust} -> Right (s, stringState ust)
-
-getCommentState :: Alex Bool
-getCommentState = Alex $ \s@AlexState{alex_ust=ust} -> Right (s, commentState ust)
-
-addCharToStringValue :: Char -> Alex ()
-addCharToStringValue c = Alex $ \s -> Right (s{alex_ust=(alex_ust s){stringValue=c:stringValue (alex_ust s)}}, ())
+setMode :: Mode -> Alex ()
+setMode mode = Alex $ \s -> Right (s{alex_mode=mode},())
 
 putInputBack :: String -> Alex ()
 putInputBack str = Alex $ \s -> Right (s{alex_inp=str ++ alex_inp s}, ())
 
 enterString :: AlexAction LTok
-enterString (posn,_,s) len = do
-  initString (if (s !! (len-1) == '\n') then len-1 else len) posn
-  alexMonadScan'
+enterString (posn,_,s) len =
+  do let n = len - 2
+     setMode (QuoteMode posn n False "")
+     monadScan'
+
+enterLongComment :: AlexAction LTok
+enterLongComment (posn,_,s) len =
+  do let n = len - 4
+     setMode (QuoteMode posn n True "")
+     monadScan'
 
 enterComment :: AlexAction LTok
 enterComment _ _ = do
-  initComment
-  alexMonadScan'
+  setMode CommentMode
+  monadScan'
 
 addCharToString :: AlexAction LTok
-addCharToString (_,_,s) len = do
-  addCharToStringValue (head s)
-  alexMonadScan'
+addCharToString (posn,_,s) _ = do
+  mode <- getMode
+  case mode of
+    QuoteMode posn len isComment body ->
+      setMode (QuoteMode posn len isComment (head s : body))
+    _ -> throwErrorAt posn "addCharToString: bad mode"
+  monadScan'
 
-endString :: Alex ()
-endString = Alex $ \s -> Right(s{alex_ust=(alex_ust s){stringState=False}}, ())
-
-endComment :: Alex ()
-endComment = Alex $ \s -> Right(s{alex_ust=(alex_ust s){commentState=False}}, ())
-
-testAndEndComment :: AlexAction LTok
-testAndEndComment _ _ = do
-  ss <- getStringState
-  if ss then alexMonadScan' else endComment >> alexSetStartCode 0 >> alexMonadScan'
+endComment :: AlexAction LTok
+endComment _ _ = do
+  setMode NormalMode
+  monadScan'
 
 testAndEndString :: AlexAction LTok
 testAndEndString (_,_,s) len = do
-  startlen <- getStringDelimLen
-  if startlen /= len
-    then do addCharToStringValue (head s)
-            putInputBack (tail $ take len s)
-            alexMonadScan'
-    else do endString
-            alexSetStartCode 0
-            cs <- getCommentState
-            if cs
-              then do
-                endComment
-                alexMonadScan'
+  let endlen = len-2
+  QuoteMode posn startlen isComment val <- getMode
+  if startlen /= endlen
+    then do setMode (QuoteMode posn startlen isComment (head s : val))
+            putInputBack (tail (take len s))
+            monadScan'
+    else do setMode NormalMode
+            if isComment
+              then monadScan'
               else do
-                val  <- getStringValue
-                posn <- getStringPosn
-                let eqs = replicate (startlen-2) '=' -- 2 were the [s
+                let eqs = replicate startlen '='
                 return (LTokSLit ("["++eqs++"["++reverse val++"]"++eqs++"]"), posn)
 
 -- | Lua token with position information.
@@ -234,36 +201,32 @@ tokWValue tok (posn,_,s) len = return (tok (take len s), posn)
 tok :: LToken -> AlexInput -> Int -> Alex LTok
 tok t (posn,_,_) _ = return (t, posn)
 
-alexEOF :: Alex LTok
-alexEOF = return (LTokEof, SourcePos "" (-1) (-1))
-
-alexMonadScan' :: Alex LTok
-alexMonadScan' = do
-  inp <- alexGetInput
-  sc <- alexGetStartCode
+monadScan' :: Alex LTok
+monadScan' = do
+  inp <- getInput
+  sc <- getStartCode
   case alexScan inp sc of
-    AlexEOF -> do cs <- getCommentState
-                  when cs endString
-                  alexEOF
-    AlexError ((SourcePos _ line col),ch,_) -> alexError ("at char " ++ [ch])
+    AlexEOF -> do mode <- getMode
+                  case mode of
+                    QuoteMode start _ True _ -> throwErrorAt start "unterminated comment"
+                    QuoteMode start _ False _ -> throwErrorAt start "unterminated string"
+                    _ -> return (LTokEof, SourcePos "" (-1) (-1))
+    AlexError (pos,ch,_) -> throwErrorAt pos ("at char " ++ [ch])
     AlexSkip  inp' len -> do
-        alexSetInput inp'
-        alexMonadScan'
+        setInput inp'
+        monadScan'
     AlexToken inp' len action -> do
-        alexSetInput inp'
+        setInput inp'
         action inp len
 
 scanner :: String -> String -> Either (String,SourcePos) [LTok]
 scanner name str = runAlex name str loop
   where loop = do
-          t@(tok, _) <- alexMonadScan'
-          if tok == LTokEof
-            then do stringState <- getStringState
-                    if stringState
-                      then alexError "String not closed at end of file"
-                      else return [t]
-            else do toks <- loop
-                    return (t:toks)
+          t    <- monadScan'
+          case fst t of
+             LTokEof -> return [t]
+             _ -> do toks <- loop
+                     return (t:toks)
 
 -- | Drop the first line of a Lua file when it starts with a '#'
 dropSpecialComment :: String -> String
@@ -359,22 +322,21 @@ byteForChar c
   space           = 5
   other           = 6
 
--- perform an action for this token, and set the start code to a new value
-andBegin :: AlexAction result -> Int -> AlexAction result
-(action `andBegin` code) input len = do alexSetStartCode code; action input len
-
-alexSetStartCode :: Int -> Alex ()
-alexSetStartCode sc = Alex $ \s -> Right (s{alex_scd=sc}, ())
-
 data AlexState = AlexState {
         alex_pos :: !SourcePos,  -- position at current input location
         alex_inp :: String,     -- the current input
         alex_chr :: !Char,      -- the character before the input
-        alex_scd :: !Int        -- the current startcode
-
-      , alex_ust :: AlexUserState -- AlexUserState will be defined in the user program
+        alex_mode :: Mode
 
     }
+
+data Mode
+  = NormalMode
+  | CommentMode
+  | QuoteMode SourcePos -- ^ start
+              Int       -- ^ delim length
+              Bool      -- ^ is comment
+              String    -- ^ body
 
 -- Compile with -funbox-strict-fields for best results!
 
@@ -384,26 +346,32 @@ runAlex name input (Alex f)
                         alex_inp = input,
                         alex_chr = '\n',
 
-                        alex_ust = alexInitUserState,
-
-                        alex_scd = 0}) of Left e -> Left e
-                                          Right ( _, a ) -> Right a
+                        alex_mode = NormalMode
+                        }) of Left e -> Left e
+                              Right ( _, a) -> Right a
 
 newtype Alex a = Alex { unAlex :: AlexState -> Either (String,SourcePos) (AlexState, a) }
 
-alexError :: String -> Alex a
-alexError message = Alex $ \s -> Left (message, alex_pos s)
+throwErrorAt :: SourcePos -> String -> Alex a
+throwErrorAt pos message = Alex $ \s -> Left (message, pos)
 
-alexGetStartCode :: Alex Int
-alexGetStartCode = Alex $ \s@AlexState{alex_scd=sc} -> Right (s, sc)
+getStartCode :: Alex Int
+getStartCode = Alex $ \s@AlexState{alex_mode=mode} -> Right (s, modeCode mode)
 
-alexSetInput :: AlexInput -> Alex ()
-alexSetInput (pos,c,inp)
+modeCode :: Mode -> Int
+modeCode mode =
+  case mode of
+    NormalMode -> 0
+    CommentMode -> state_comment
+    QuoteMode{} -> state_string
+
+setInput :: AlexInput -> Alex ()
+setInput (pos,c,inp)
  = Alex $ \s -> case s{alex_pos=pos,alex_chr=c,alex_inp=inp} of
                   s@(AlexState{}) -> Right (s, ())
 
-alexGetInput :: Alex AlexInput
-alexGetInput
+getInput :: Alex AlexInput
+getInput
  = Alex $ \s@AlexState{alex_pos=pos,alex_chr=c,alex_inp=inp} ->
         Right (s, (pos,c,inp))
 
