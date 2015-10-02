@@ -140,15 +140,27 @@ stat ::                                                   { Stat SourcePos      
   | '::' name '::'                                        { sl $1 Label $2                }
   | 'break'                                               { sl $1 Break                   }
   | 'goto' name                                           { sl $1 Goto $2                 }
+  | 'local' namelist opt(assign)                          { sl $1 LocalAssign $2 $3       }
+
+  ------- block structures -------------------------------
+  | 'function' funcname funcbody 'end'                    { sl $1 FunAssign $2 $3         }
+  | 'local' 'function' name funcbody 'end'                { sl $1 LocalFunAssign $3 $4    }
+  | 'repeat' block 'until' exp                            { sl $1 Repeat $2 $4            }
   | 'do' block 'end'                                      { sl $1 Do $2                   }
   | 'while' exp 'do' block 'end'                          { sl $1 While $2 $4             }
-  | 'repeat' block 'until' exp                            { sl $1 Repeat $2 $4            }
   | 'if' exp 'then' block many(elseif) opt(else) 'end'    { sl $1 If (($2,$4):$5) $6      }
   | 'for' name '=' exp ',' exp opt(step) 'do' block 'end' { sl $1 ForRange $2 $4 $6 $7 $9 }
   | 'for' namelist 'in' explist 'do' block 'end'          { sl $1 ForIn $2 $4 $6          }
-  | 'function' funcname funcbody                          { sl $1 FunAssign $2 $3         }
-  | 'local' 'function' name funcbody                      { sl $1 LocalFunAssign $3 $4    }
-  | 'local' namelist opt(assign)                          { sl $1 LocalAssign $2 $3       }
+
+  ------- error cases for block structures ---------------
+  | 'function' funcname funcbody error                    {% noEndP $1 }
+  | 'local' 'function' name funcbody error                {% noEndP $1 }
+  | 'repeat' block error                                  {% noEndP $1 }
+  | 'do' block error                                      {% noEndP $1 }
+  | 'while' exp 'do' block error                          {% noEndP $1 }
+  | 'if' exp 'then' block many(elseif) opt(else) error    {% noEndP $1 }
+  | 'for' name '=' exp ',' exp opt(step) 'do' block error {% noEndP $1 }
+  | 'for' namelist 'in' explist 'do' block error          {% noEndP $1 }
 
 elseif : 'elseif' exp 'then' block { ($2,$4) }
 else   : 'else' block { $2 }
@@ -223,10 +235,11 @@ args ::                    { FunArg SourcePos               }
   | literalString          { sl $1 StringArg (getString $1) }
 
 functiondef ::          { FunDef SourcePos }
-  : 'function' funcbody { sl $1 FunDef $2  }
+  : 'function' funcbody 'end' { sl $1 FunDef $2  }
+  | 'function' funcbody error {% noEndP $1 }
 
 funcbody ::                     { FunBody SourcePos                  }
-  : '(' parlist ')' block 'end' { sl $1 FunBody (fst $2) (snd $2) $4 }
+  : '(' parlist ')' block { sl $1 FunBody (fst $2) (snd $2) $4 }
 
 parlist ::              { ([Name SourcePos],Maybe SourcePos) }
   : parnames1 ',' '...' { (reverse $1,Just (snd $3) )        }
@@ -261,10 +274,10 @@ name ::   { Name SourcePos            }
 {
 
 data Parser a = Parser
-  { runP :: forall r. (LTok -> r) -> (a -> [LTok] -> r) -> [LTok] -> r }
+  { runP :: forall r. (SourcePos -> String -> r) -> (a -> [LTok] -> r) -> [LTok] -> r }
 
-runParser :: Parser a -> [LTok] -> Either LTok a
-runParser p = runP p Left (\x _ -> Right x)
+runParser :: Parser a -> [LTok] -> Either (String,SourcePos) a
+runParser p = runP p (\pos e -> Left (e,pos)) (\x _ -> Right x)
 
 instance Functor     Parser where fmap    = liftM
 instance Applicative Parser where pure x  = Parser $ \_ k -> k x
@@ -274,7 +287,10 @@ instance Monad       Parser where m >>= f = Parser $ \e k ->
                                             runP (f a) e k
 
 errorP :: LTok -> Parser a
-errorP x = Parser $ \e _ _ -> e x
+errorP (x,pos) = Parser $ \e _ _ -> e pos ("unexpected " ++ show x)
+
+noEndP :: LTok -> Parser a
+noEndP (t,pos) = Parser $ \e _ _ -> e pos ("unterminated " ++ show t)
 
 lexerP :: Parser LTok
 lexerP = Parser $ \ _ k (l:ls) -> k l ls
@@ -313,8 +329,8 @@ parseNamedText p n xs =
       Left ("lexical error: " ++ e, pos)
     Right ys ->
       case runParser p ys of
-        Left (tok,pos) ->
-          Left ("parser error: unexpected " ++ show tok, pos)
+        Left (msg,pos) ->
+          Left ("parser error: " ++ show msg, pos)
         Right chunk -> Right chunk
 
 -- | Runs Lua lexer before parsing. Use @parseText stat@ to parse
