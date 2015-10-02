@@ -15,15 +15,15 @@ import           Language.Lua.LexerUtils
 
 }
 
-$letter      = [a-zA-Z_]                 -- first letter of variables
-$identletter = [a-zA-Z_0-9]              -- letters for rest of variables
+$letter      = [a-zA-Z_]                -- first letter of variables
+$identletter = [a-zA-Z_0-9]             -- letters for rest of variables
 
-$digit    = 0-9                          -- decimal digits
-$hexdigit = [0-9a-fA-F]                  -- hexadecimal digits
+$digit    = 0-9                         -- decimal digits
+$hexdigit = [0-9a-fA-F]                 -- hexadecimal digits
 
-$dqstr    = . # [ \" \\ ]       -- valid character in a string literal with dquotes
-$sqstr    = . # [ \' \\ ]       -- valid character in a string literal with quotes
-$longstr  = [ . \n ]                     -- valid character in a long string
+$dqstr    = . # [ \" \\ ]               -- valid character in a string literal with dquotes
+$sqstr    = . # [ \' \\ ]               -- valid character in a string literal with quotes
+$longstr  = [ . \n ]                    -- valid character in a long string
 
 -- escape characters
 @charesc   = \\ ([ntvbrfa\\"'] | $digit{1,3} | x$hexdigit{2} | u\{$hexdigit+\} | \n | z $white*)
@@ -31,11 +31,11 @@ $longstr  = [ . \n ]                     -- valid character in a long string
 @digits    = $digit+
 @hexdigits = $hexdigit+
 
-@mantpart = (@digits \. @digits) | @digits \. | \. @digits
+@mantpart = @digits | @digits \. @digits | @digits \. | \. @digits
 @exppart  = [eE][\+\-]? @digits
 
 @hexprefix   = 0x | 0X
-@mantparthex = (@hexdigits \. @hexdigits) | @hexdigits \. | \. @hexdigits
+@mantparthex = @hexdigits | @hexdigits \. @hexdigits | @hexdigits \. | \. @hexdigits
 @expparthex  = [pP][\+\-]? @hexdigits
 
 tokens :-
@@ -70,11 +70,7 @@ tokens :-
     <0> $letter $identletter* { tokWValue LTokIdent }
 
     -- number literals
-    <0> @digits                              { tokWValue LTokNum }
-    <0> @digits @exppart                     { tokWValue LTokNum }
     <0> @mantpart @exppart?                  { tokWValue LTokNum }
-    <0> @hexprefix @hexdigits                { tokWValue LTokNum }
-    <0> @hexprefix @hexdigits @expparthex    { tokWValue LTokNum }
     <0> @hexprefix @mantparthex @expparthex? { tokWValue LTokNum }
 
     -- string literals

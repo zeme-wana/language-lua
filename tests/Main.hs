@@ -1,6 +1,8 @@
 {-# LANGUAGE DeriveGeneric, FlexibleInstances, ScopedTypeVariables,
              OverloadedStrings #-}
 
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module Main where
 
 import qualified Language.Lua.Annotated.Lexer    as L

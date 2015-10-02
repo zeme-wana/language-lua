@@ -121,33 +121,34 @@ many   (p) : revMany(p)   { reverse $1 }
 revMany(p) : revMany(p) p { $2 : $1    }
            |              { []         }
 
-sepBy    (p,sep) : sepBy1(p,sep)          { $1 }
-                 |                        { [] }
+sepBy    (p,sep) : sepBy1(p,sep)          { $1         }
+                 |                        { []         }
 sepBy1   (p,sep) : revSepBy1(p,sep)       { reverse $1 }
 revSepBy1(p,sep) : p                      { [$1]       }
                  | revSepBy1(p,sep) sep p { $3 : $1    }
 
-block : many(stat) opt(retstat) { Block (blockAnn $1 $2) $1 $2 }
+block ::                    { Block SourcePos              }
+  : many(stat) opt(retstat) { Block (blockAnn $1 $2) $1 $2 }
 
-retstat :: { [Exp SourcePos] }
-  : 'return' sepBy(exp,',') opt(';') { $2 }
+retstat ::                           { [Exp SourcePos] }
+  : 'return' sepBy(exp,',') opt(';') { $2              }
 
-stat :: { Stat SourcePos }
-  : ';'                                                   { sl $1 EmptyStat }
-  | varlist '=' explist                                   { sp (head $1) Assign $1 $3 }
-  | functioncall %prec STAT                               { sp $1 FunCall $1 }
-  | '::' name '::'                                        { sl $1 Label $2 }
-  | 'break'                                               { sl $1 Break }
-  | 'goto' name                                           { sl $1 Goto $2 }
-  | 'do' block 'end'                                      { sl $1 Do $2 }
-  | 'while' exp 'do' block 'end'                          { sl $1 While $2 $4 }
-  | 'repeat' block 'until' exp                            { sl $1 Repeat $2 $4 }
-  | 'if' exp 'then' block many(elseif) opt(else) 'end'    { sl $1 If (($2,$4):$5) $6 }
+stat ::                                                   { Stat SourcePos                }
+  : ';'                                                   { sl $1 EmptyStat               }
+  | varlist '=' explist                                   { sp (head $1) Assign $1 $3     }
+  | functioncall %prec STAT                               { sp $1 FunCall $1              }
+  | '::' name '::'                                        { sl $1 Label $2                }
+  | 'break'                                               { sl $1 Break                   }
+  | 'goto' name                                           { sl $1 Goto $2                 }
+  | 'do' block 'end'                                      { sl $1 Do $2                   }
+  | 'while' exp 'do' block 'end'                          { sl $1 While $2 $4             }
+  | 'repeat' block 'until' exp                            { sl $1 Repeat $2 $4            }
+  | 'if' exp 'then' block many(elseif) opt(else) 'end'    { sl $1 If (($2,$4):$5) $6      }
   | 'for' name '=' exp ',' exp opt(step) 'do' block 'end' { sl $1 ForRange $2 $4 $6 $7 $9 }
-  | 'for' namelist 'in' explist 'do' block 'end'          { sl $1 ForIn $2 $4 $6 }
-  | 'function' funcname funcbody                          { sl $1 FunAssign $2 $3 }
-  | 'local' 'function' name funcbody                      { sl $1 LocalFunAssign $3 $4 }
-  | 'local' namelist opt(assign)                          { sl $1 LocalAssign $2 $3 }
+  | 'for' namelist 'in' explist 'do' block 'end'          { sl $1 ForIn $2 $4 $6          }
+  | 'function' funcname funcbody                          { sl $1 FunAssign $2 $3         }
+  | 'local' 'function' name funcbody                      { sl $1 LocalFunAssign $3 $4    }
+  | 'local' namelist opt(assign)                          { sl $1 LocalAssign $2 $3       }
 
 elseif : 'elseif' exp 'then' block { ($2,$4) }
 else   : 'else' block { $2 }
@@ -159,35 +160,35 @@ explist  : sepBy1(exp,  ',') { $1 }
 namelist : sepBy1(name, ',') { $1 }
 
 prefixexp ::                  { PrefixExp SourcePos }
-  : var                       { sp $1 PEVar $1     }
-  | functioncall %prec PREFIX { sp $1 PEFunCall $1 }
-  | '(' exp ')'               { sl $1 Paren $2     }
+  : var                       { sp $1 PEVar $1      }
+  | functioncall %prec PREFIX { sp $1 PEFunCall $1  }
+  | '(' exp ')'               { sl $1 Paren $2      }
 
-functioncall ::               { FunCall SourcePos          }
+functioncall ::               { FunCall SourcePos         }
   : prefixexp            args { sp $1 NormalFunCall $1 $2 }
   | prefixexp methodname args { sp $1 MethodCall $1 $2 $3 }
 
-funcname ::                               { FunName SourcePos       }
+funcname ::                               { FunName SourcePos      }
   : name many(dottedname) opt(methodname) { sp $1 FunName $1 $2 $3 }
 
 dottedname : '.' name  { $2 }
 methodname : ':' name  { $2 }
 
-var ::                    { Var SourcePos           }
+var ::                    { Var SourcePos          }
   : name                  { sp $1 VarName $1       }
   | prefixexp '[' exp ']' { sp $1 Select $1 $3     }
   | prefixexp '.' name    { sp $1 SelectName $1 $3 }
 
-exp ::                     { Exp SourcePos             }
-  : 'nil'                  { sl $1 Nil                }
-  | 'false'                { sl $1 Bool False         }
-  | 'true'                 { sl $1 Bool True          }
+exp ::                     { Exp SourcePos               }
+  : 'nil'                  { sl $1 Nil                   }
+  | 'false'                { sl $1 Bool False            }
+  | 'true'                 { sl $1 Bool True             }
   | numeral                { sl $1 Number (getString $1) }
   | literalString          { sl $1 String (getString $1) }
-  | '...'                  { sl $1 Vararg             }
-  | functiondef            { sp $1 EFunDef $1         }
-  | prefixexp %prec EXP    { sp $1 PrefixExp $1       }
-  | tableconstructor       { sp $1 TableConst $1      }
+  | '...'                  { sl $1 Vararg                }
+  | functiondef            { sp $1 EFunDef $1            }
+  | prefixexp %prec EXP    { sp $1 PrefixExp $1          }
+  | tableconstructor       { sp $1 TableConst $1         }
 
   | exp '+' exp   { sp $1 Binop (sl $2 Add   ) $1 $3 }
   | exp '-' exp   { sp $1 Binop (sl $2 Sub   ) $1 $3 }
@@ -216,45 +217,45 @@ exp ::                     { Exp SourcePos             }
   | 'not' exp                { sl $1 Unop (sl $1 Not)        $2 }
   | '#'  exp                 { sl $1 Unop (sl $1 Len)        $2 }
 
-args ::                    { FunArg SourcePos             }
-  : '(' sepBy(exp,',') ')' { sl $1 Args $2               }
-  | tableconstructor       { sp $1 TableArg $1           }
+args ::                    { FunArg SourcePos               }
+  : '(' sepBy(exp,',') ')' { sl $1 Args $2                  }
+  | tableconstructor       { sp $1 TableArg $1              }
   | literalString          { sl $1 StringArg (getString $1) }
 
-functiondef :: { FunDef SourcePos }
-  : 'function' funcbody { sl $1 FunDef $2 }
+functiondef ::          { FunDef SourcePos }
+  : 'function' funcbody { sl $1 FunDef $2  }
 
-funcbody :: { FunBody SourcePos }
+funcbody ::                     { FunBody SourcePos                  }
   : '(' parlist ')' block 'end' { sl $1 FunBody (fst $2) (snd $2) $4 }
 
-parlist :: { ([Name SourcePos],Maybe SourcePos) }
-  : parnames1 ',' '...' { (reverse $1,Just (snd $3) ) }
-  | parnames1           { (reverse $1,Nothing) }
-  | '...'               { ([],Just (snd $1))          }
-  |                     { ([],Nothing)         }
+parlist ::              { ([Name SourcePos],Maybe SourcePos) }
+  : parnames1 ',' '...' { (reverse $1,Just (snd $3) )        }
+  | parnames1           { (reverse $1,Nothing)               }
+  | '...'               { ([],Just (snd $1))                 }
+  |                     { ([],Nothing)                       }
 
 parnames1 ::           { [Name SourcePos] }
-  : name               { [$1]            }
-  | parnames1 ',' name { $3 : $1         }
+  : name               { [$1]             }
+  | parnames1 ',' name { $3 : $1          }
 
-tableconstructor ::                 { Table SourcePos }
-  : '{'                         '}' { sl $1 Table [] }
+tableconstructor ::                 { Table SourcePos          }
+  : '{'                         '}' { sl $1 Table []           }
   | '{' fieldlist opt(fieldsep) '}' { sl $1 Table (reverse $2) }
 
 fieldlist ::                  { [TableField SourcePos] }
-  : fieldlist fieldsep field  { $3 : $1 }
-  | field                     { [$1]    }
+  : fieldlist fieldsep field  { $3 : $1                }
+  | field                     { [$1]                   }
 
-fieldsep
+fieldsep :: { () }
   : ','     { () }
   | ';'     { () }
 
-field :: { TableField SourcePos }
-  : '[' exp ']' '=' exp { sl $1 ExpField $2 $5 }
+field ::                { TableField SourcePos   }
+  : '[' exp ']' '=' exp { sl $1 ExpField $2 $5   }
   | name        '=' exp { sp $1 NamedField $1 $3 }
-  |                 exp { sp $1 Field $1 }
+  |                 exp { sp $1 Field $1         }
 
-name :: { Name SourcePos }
+name ::   { Name SourcePos            }
   : ident { sl $1 Name (getString $1) }
 
 {
