@@ -42,7 +42,8 @@ Library
                      Language.Lua.Annotated.Lexer
                      Language.Lua.Annotated.Simplify
 
-  Other-modules:     Text.PrettyPrint.Leijen
+  Other-modules:     Text.PrettyPrint.Leijen,
+                     Language.Lua.LexerUtils
 
   Build-depends:     base >= 4.5 && < 4.9,
                      deepseq,

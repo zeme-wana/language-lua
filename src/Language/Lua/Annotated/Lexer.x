@@ -10,13 +10,8 @@ module Language.Lua.Annotated.Lexer
   , SourcePos(..)
   ) where
 
-import           Control.Applicative (Applicative(..))
-import           Control.Monad (ap, liftM, forM_, when)
-import           Data.Char (GeneralCategory(..),generalCategory,isAscii,isSpace)
-import           Data.Word (Word8)
-import           Control.DeepSeq (NFData(..))
-
 import           Language.Lua.Token
+import           Language.Lua.LexerUtils
 
 }
 
@@ -134,74 +129,17 @@ tokens :-
 
 {
 
-getMode :: Alex Mode
-getMode = Alex $ \s@AlexState{alex_mode=mode} -> Right (s, mode)
+getStartCode :: Lexer Int
+getStartCode = Lexer $ \s@AlexState{alex_mode=mode} -> Right (s, modeCode mode)
 
-setMode :: Mode -> Alex ()
-setMode mode = Alex $ \s -> Right (s{alex_mode=mode},())
-
-putInputBack :: String -> Alex ()
-putInputBack str = Alex $ \s -> Right (s{alex_inp=str ++ alex_inp s}, ())
-
-enterString :: AlexAction LTok
-enterString (posn,_,s) len =
-  do let n = len - 2
-     setMode (QuoteMode posn n False "")
-     monadScan'
-
-enterLongComment :: AlexAction LTok
-enterLongComment (posn,_,s) len =
-  do let n = len - 4
-     setMode (QuoteMode posn n True "")
-     monadScan'
-
-enterComment :: AlexAction LTok
-enterComment _ _ = do
-  setMode CommentMode
-  monadScan'
-
-addCharToString :: AlexAction LTok
-addCharToString (posn,_,s) _ = do
-  mode <- getMode
+modeCode :: Mode -> Int
+modeCode mode =
   case mode of
-    QuoteMode posn len isComment body ->
-      setMode (QuoteMode posn len isComment (head s : body))
-    _ -> throwErrorAt posn "addCharToString: bad mode"
-  monadScan'
+    NormalMode -> 0
+    CommentMode -> state_comment
+    QuoteMode{} -> state_string
 
-endComment :: AlexAction LTok
-endComment _ _ = do
-  setMode NormalMode
-  monadScan'
-
-testAndEndString :: AlexAction LTok
-testAndEndString (_,_,s) len = do
-  let endlen = len-2
-  QuoteMode posn startlen isComment val <- getMode
-  if startlen /= endlen
-    then do setMode (QuoteMode posn startlen isComment (head s : val))
-            putInputBack (tail (take len s))
-            monadScan'
-    else do setMode NormalMode
-            if isComment
-              then monadScan'
-              else do
-                let eqs = replicate startlen '='
-                return (LTokSLit ("["++eqs++"["++reverse val++"]"++eqs++"]"), posn)
-
--- | Lua token with position information.
-type LTok = (LToken, SourcePos)
-
-type AlexAction result = AlexInput -> Int -> Alex result
-
--- Helper to make LTokens with string value (like LTokNum, LTokSLit etc.)
-tokWValue :: (String -> LToken) -> AlexInput -> Int -> Alex LTok
-tokWValue tok (posn,_,s) len = return (tok (take len s), posn)
-
-tok :: LToken -> AlexInput -> Int -> Alex LTok
-tok t (posn,_,_) _ = return (t, posn)
-
-monadScan' :: Alex LTok
+monadScan' :: Lexer LTok
 monadScan' = do
   inp <- getInput
   sc <- getStartCode
@@ -217,22 +155,15 @@ monadScan' = do
         monadScan'
     AlexToken inp' len action -> do
         setInput inp'
-        action inp len
+        maybe monadScan' return =<< action inp len
 
 scanner :: String -> String -> Either (String,SourcePos) [LTok]
 scanner name str = runAlex name str loop
   where loop = do
-          t    <- monadScan'
-          case fst t of
-             LTokEof -> return [t]
-             _ -> do toks <- loop
-                     return (t:toks)
-
--- | Drop the first line of a Lua file when it starts with a '#'
-dropSpecialComment :: String -> String
-dropSpecialComment ('#':xs) = dropWhile (/='\n') xs
-dropSpecialComment xs = xs
--- Newline is preserved in order to ensure that line numbers stay correct
+          t <- monadScan'
+          case t of
+             (LTokEof,_) -> return [t]
+             t -> fmap (t:) loop
 
 -- | Lua lexer with default @=<string>@ name.
 llex :: String {- ^ chunk -} -> Either (String,SourcePos) [LTok]
@@ -248,144 +179,5 @@ llexNamed chunk name = scanner name (dropSpecialComment chunk)
 -- | Run Lua lexer on a file.
 llexFile :: FilePath -> IO (Either (String,SourcePos) [LTok])
 llexFile fp = fmap (`llexNamed` fp) (readFile fp)
-
-------------------------------------------------------------------------
--- Custom Alex wrapper
-------------------------------------------------------------------------
-
-data SourcePos = SourcePos String -- ^ filename
-                       {-# UNPACK #-}!Int  -- ^ line number
-                       {-# UNPACK #-}!Int  -- ^ column number
-  deriving (Show,Eq)
-
-instance NFData SourcePos where
-  rnf (SourcePos _ _ _) = ()
-
-type AlexInput = (SourcePos,     -- current position,
-                  Char,         -- previous char
-                  String)       -- current input string
-
-startPos :: String -> SourcePos
-startPos n = SourcePos n 1 1
-
-alexGetByte :: AlexInput -> Maybe (Word8,AlexInput)
-alexGetByte (_,_,[]) = Nothing
-alexGetByte (p,_,c:cs) = Just (byteForChar c,(p',c,cs))
-  where p' = alexMove p c
-
-alexMove :: SourcePos -> Char -> SourcePos
-alexMove (SourcePos name line column) c =
-  case c of
-    '\t' -> SourcePos name line (((column + 7) `div` 8) * 8 + 1)
-    '\n' -> SourcePos name (line + 1) 1
-    _    -> SourcePos name line (column + 1)
-
-------------------------------------------------------------------------
--- Embed all of unicode, kind of, in a single byte!
-------------------------------------------------------------------------
-
-byteForChar :: Char -> Word8
-byteForChar c
-  | c <= '\6' = non_graphic
-  | isAscii c = fromIntegral (ord c)
-  | otherwise = case generalCategory c of
-                  LowercaseLetter       -> lower
-                  OtherLetter           -> lower
-                  UppercaseLetter       -> upper
-                  TitlecaseLetter       -> upper
-                  DecimalNumber         -> digit
-                  OtherNumber           -> digit
-                  ConnectorPunctuation  -> symbol
-                  DashPunctuation       -> symbol
-                  OtherPunctuation      -> symbol
-                  MathSymbol            -> symbol
-                  CurrencySymbol        -> symbol
-                  ModifierSymbol        -> symbol
-                  OtherSymbol           -> symbol
-                  Space                 -> space
-                  ModifierLetter        -> other
-                  NonSpacingMark        -> other
-                  SpacingCombiningMark  -> other
-                  EnclosingMark         -> other
-                  LetterNumber          -> other
-                  OpenPunctuation       -> other
-                  ClosePunctuation      -> other
-                  InitialQuote          -> other
-                  FinalQuote            -> other
-                  _                     -> non_graphic
-  where
-  non_graphic     = 0
-  upper           = 1
-  lower           = 2
-  digit           = 3
-  symbol          = 4
-  space           = 5
-  other           = 6
-
-data AlexState = AlexState {
-        alex_pos :: !SourcePos,  -- position at current input location
-        alex_inp :: String,     -- the current input
-        alex_chr :: !Char,      -- the character before the input
-        alex_mode :: Mode
-
-    }
-
-data Mode
-  = NormalMode
-  | CommentMode
-  | QuoteMode SourcePos -- ^ start
-              Int       -- ^ delim length
-              Bool      -- ^ is comment
-              String    -- ^ body
-
--- Compile with -funbox-strict-fields for best results!
-
-runAlex :: String -> String -> Alex a -> Either (String,SourcePos) a
-runAlex name input (Alex f)
-   = case f (AlexState {alex_pos = startPos name,
-                        alex_inp = input,
-                        alex_chr = '\n',
-
-                        alex_mode = NormalMode
-                        }) of Left e -> Left e
-                              Right ( _, a) -> Right a
-
-newtype Alex a = Alex { unAlex :: AlexState -> Either (String,SourcePos) (AlexState, a) }
-
-throwErrorAt :: SourcePos -> String -> Alex a
-throwErrorAt pos message = Alex $ \s -> Left (message, pos)
-
-getStartCode :: Alex Int
-getStartCode = Alex $ \s@AlexState{alex_mode=mode} -> Right (s, modeCode mode)
-
-modeCode :: Mode -> Int
-modeCode mode =
-  case mode of
-    NormalMode -> 0
-    CommentMode -> state_comment
-    QuoteMode{} -> state_string
-
-setInput :: AlexInput -> Alex ()
-setInput (pos,c,inp)
- = Alex $ \s -> case s{alex_pos=pos,alex_chr=c,alex_inp=inp} of
-                  s@(AlexState{}) -> Right (s, ())
-
-getInput :: Alex AlexInput
-getInput
- = Alex $ \s@AlexState{alex_pos=pos,alex_chr=c,alex_inp=inp} ->
-        Right (s, (pos,c,inp))
-
-instance Functor Alex where
-  fmap = liftM
-
-instance Applicative Alex where
-  pure a = Alex $ \s -> Right (s,a)
-  (<*>) = ap
-
-instance Monad Alex where
-  return = pure
-  m >>= k  = Alex $ \s -> case unAlex m s of
-                                Left msg -> Left msg
-                                Right (s',a) -> unAlex (k a) s'
 
 }
