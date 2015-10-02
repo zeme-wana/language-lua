@@ -21,52 +21,40 @@ newtype Lexer a = Lexer { unAlex :: AlexState -> Either (String,SourcePos) (Alex
 getMode :: Lexer Mode
 getMode = Lexer $ \s@AlexState{alex_mode=mode} -> Right (s, mode)
 
-setMode :: Mode -> Lexer ()
-setMode mode = Lexer $ \s -> Right (s{alex_mode=mode},())
+setMode :: Mode -> Lexer (Maybe LTok)
+setMode mode = Lexer $ \s -> Right (s{alex_mode=mode},Nothing)
 
 putInputBack :: String -> Lexer ()
 putInputBack str = Lexer $ \s -> Right (s{alex_inp=str ++ alex_inp s}, ())
 
 enterString :: Action (Maybe LTok)
-enterString (posn,_,_) len =
-  do let n = len - 2
-     setMode (QuoteMode posn n False "")
-     return Nothing
+enterString (posn,_) len = setMode (QuoteMode posn (len-2) False "")
 
 enterLongComment :: Action (Maybe LTok)
-enterLongComment (posn,_,_) len =
-  do let n = len - 4
-     setMode (QuoteMode posn n True "")
-     return Nothing
+enterLongComment (posn,_) len = setMode (QuoteMode posn (len-4) True "")
 
 enterComment :: Action (Maybe LTok)
-enterComment _ _ = do
-  setMode CommentMode
-  return Nothing
+enterComment _ _ = setMode CommentMode
 
 addCharToString :: Action (Maybe LTok)
-addCharToString (_,_,s) _ = do
+addCharToString (_,s) _ = do
   mode <- getMode
   case mode of
     QuoteMode posn len isComment body ->
       setMode (QuoteMode posn len isComment (head s : body))
     _ -> error "lexer broken: addCharToString"
-  return Nothing
 
 endComment :: Action (Maybe LTok)
-endComment _ _ = do
-  setMode NormalMode
-  return Nothing
+endComment _ _ = setMode NormalMode
 
 testAndEndString :: Action (Maybe LTok)
-testAndEndString (_,_,s) len = do
+testAndEndString (_,s) len = do
   let endlen = len-2
   QuoteMode posn startlen isComment val <- getMode
   if startlen /= endlen
-    then do setMode (QuoteMode posn startlen isComment (head s : val))
-            putInputBack (tail (take len s))
-            return Nothing
-    else do setMode NormalMode
+    then do putInputBack (tail (take len s))
+            setMode (QuoteMode posn startlen isComment (head s : val))
+    else do _ <- setMode NormalMode
             if isComment
               then return Nothing
               else do
@@ -76,10 +64,10 @@ testAndEndString (_,_,s) len = do
 
 -- Helper to make LTokens with string value (like LTokNum, LTokSLit etc.)
 tokWValue :: (String -> LToken) -> AlexInput -> Int -> Lexer (Maybe LTok)
-tokWValue f (posn,_,s) len = return (Just (f (take len s), posn))
+tokWValue f (posn,s) len = return (Just (f (take len s), posn))
 
 tok :: LToken -> AlexInput -> Int -> Lexer (Maybe LTok)
-tok t (posn,_,_) _ = return (Just (t, posn))
+tok t (posn,_) _ = return (Just (t, posn))
 
 -- | Drop the first line of a Lua file when it starts with a '#'
 dropSpecialComment :: String -> String
@@ -100,15 +88,14 @@ instance NFData SourcePos where
   rnf (SourcePos _ _ _) = ()
 
 type AlexInput = (SourcePos,     -- current position,
-                  Char,         -- previous char
                   String)       -- current input string
 
 startPos :: String -> SourcePos
 startPos n = SourcePos n 1 1
 
 alexGetByte :: AlexInput -> Maybe (Word8,AlexInput)
-alexGetByte (_,_,[]) = Nothing
-alexGetByte (p,_,c:cs) = Just (byteForChar c,(p',c,cs))
+alexGetByte (_,[]) = Nothing
+alexGetByte (p,c:cs) = Just (byteForChar c,(p',cs))
   where p' = move p c
 
 move :: SourcePos -> Char -> SourcePos
@@ -132,7 +119,6 @@ byteForChar c
 data AlexState = AlexState {
         alex_pos :: !SourcePos,  -- position at current input location
         alex_inp :: String,     -- the current input
-        alex_chr :: Char,      -- the character before the input
         alex_mode :: Mode
 
     }
@@ -151,8 +137,6 @@ runAlex :: String -> String -> Lexer a -> Either (String,SourcePos) a
 runAlex name input (Lexer f)
    = case f (AlexState {alex_pos = startPos name,
                         alex_inp = input,
-                        alex_chr = '\n',
-
                         alex_mode = NormalMode
                         }) of Left e -> Left e
                               Right ( _, a) -> Right a
@@ -162,14 +146,14 @@ throwErrorAt :: SourcePos -> String -> Lexer a
 throwErrorAt pos message = Lexer $ \_ -> Left (message, pos)
 
 setInput :: AlexInput -> Lexer ()
-setInput (pos,c,inp)
- = Lexer $ \s -> case s{alex_pos=pos,alex_chr=c,alex_inp=inp} of
+setInput (pos,inp)
+ = Lexer $ \s -> case s{alex_pos=pos,alex_inp=inp} of
                   s'@(AlexState{}) -> Right (s', ())
 
 getInput :: Lexer AlexInput
 getInput
- = Lexer $ \s@AlexState{alex_pos=pos,alex_chr=c,alex_inp=inp} ->
-        Right (s, (pos,c,inp))
+ = Lexer $ \s@AlexState{alex_pos=pos,alex_inp=inp} ->
+        Right (s, (pos,inp))
 
 instance Functor Lexer where
   fmap = liftM

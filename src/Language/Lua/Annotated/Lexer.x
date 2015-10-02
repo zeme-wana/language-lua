@@ -149,7 +149,7 @@ monadScan' = do
                     QuoteMode start _ True _ -> throwErrorAt start "unterminated comment"
                     QuoteMode start _ False _ -> throwErrorAt start "unterminated string"
                     _ -> return (LTokEof, SourcePos "" (-1) (-1))
-    AlexError (pos,ch,_) -> throwErrorAt pos ("at char " ++ [ch])
+    AlexError (pos,ch:_) -> throwErrorAt pos ("at char " ++ [ch])
     AlexSkip  inp' len -> do
         setInput inp'
         monadScan'
