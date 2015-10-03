@@ -16,5 +16,7 @@ main = defaultMain
 
 loadFiles :: FilePath -> IO [String]
 loadFiles root = do
-  luaFiles <- map (root </>) . filter ((==) ".lua" . takeExtension) <$> getDirectoryContents root
+  let isLuaFile file = takeExtension file == ".lua"
+      onlyLuaFiles = map (root </>) . filter isLuaFile
+  luaFiles <- fmap onlyLuaFiles (getDirectoryContents root)
   mapM readFile luaFiles
