@@ -282,7 +282,8 @@ runParser p = runP p (\pos e -> Left (e,pos)) (\x _ -> Right x)
 instance Functor     Parser where fmap    = liftM
 instance Applicative Parser where pure x  = Parser $ \_ k -> k x
                                   (<*>)   = ap
-instance Monad       Parser where m >>= f = Parser $ \e k ->
+instance Monad       Parser where return  = pure
+                                  m >>= f = Parser $ \e k ->
                                             runP m e $ \a ->
                                             runP (f a) e k
 
