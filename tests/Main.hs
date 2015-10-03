@@ -147,7 +147,7 @@ stringTests = testGroup "String tests"
             let extract (Assign _ [String s]) = Just s
                 extract _                     = Nothing
 
-            strs <- case traverse extract stats of
+            strs <- case mapM extract stats of
                       Nothing -> assertFailure "couldn't extract strings" >> undefined
                       Just strs -> return strs
 
