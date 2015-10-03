@@ -1,5 +1,5 @@
-{-# LANGUAGE DeriveGeneric, FlexibleInstances, ScopedTypeVariables,
-             OverloadedStrings #-}
+{-# LANGUAGE DeriveGeneric, FlexibleInstances, OverloadedStrings,
+             ScopedTypeVariables #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -8,7 +8,7 @@ module Main where
 import qualified Language.Lua.Annotated.Lexer    as L
 import qualified Language.Lua.Annotated.Parser   as AP
 import qualified Language.Lua.Parser             as P
-import qualified Language.Lua.PrettyPrinter      as PP
+import           Language.Lua.PrettyPrinter
 import           Language.Lua.StringLiteral
 import           Language.Lua.Syntax
 import qualified Language.Lua.Token              as T
@@ -169,7 +169,7 @@ stringTests = testGroup "String tests"
              Right x -> assertEqual
                           "pretty printer didn't preserve"
                           contents
-                          (show (PP.pprint x) ++ "\n"))
+                          (show (pprint x) ++ "\n"))
                         -- text file lines always end in a newline
                         -- but the pretty printer doesn't know this
     ]
@@ -229,17 +229,27 @@ regressions = testGroup "Regression tests"
     , testCase "explist parsers shouldn't accept empty list of expressions in global declarations" $
         assertParseFailure (P.parseText P.stat "x =")
     , testCase "empty list of return values should be accpeted" $
-        assertEqual "Parsed wrong" (Right $ Block [] (Just [])) (AP.parseText P.chunk "return")
+        assertEqual "Parsed wrong" (Right $ Block [] (Just [])) (P.parseText P.chunk "return")
+    , testCase "Long comments should start immediately after --" $ do
+        assertEqual "Parsed wrong" (Right $ Block [] Nothing)
+          (P.parseText P.chunk "--[[ line1\nline2 ]]")
+        assertParseFailure (P.parseText P.chunk "-- [[ line1\nline2 ]]")
+    , testCase "Print EmptyStat for disambiguation" $ ppChunk "f();(f)()"
     ]
   where
     pp :: String -> Assertion
-    pp expr =
-      case AP.parseText P.exp expr of
+    pp = ppTest (P.parseText P.exp) (show . pprint)
+
+    ppChunk :: String -> Assertion
+    ppChunk = ppTest (P.parseText P.chunk) (show . pprint)
+
+    ppTest :: Show err => (String -> Either err ret) -> (ret -> String) -> String -> Assertion
+    ppTest parser printer str =
+      case parser str of
         Left err -> assertFailure $ "Parsing failed: " ++ show err
         Right expr' ->
           assertEqual "Printed string is not equal to original one modulo whitespace"
-            (filter (not . isSpace) expr)
-            (filter (not . isSpace) (show (PP.pprint expr')))
+            (filter (not . isSpace) str) (filter (not . isSpace) (printer expr'))
 
     assertParseFailure (Left _parseError) = return ()
     assertParseFailure (Right ret) = assertFailure $ "Unexpected parse: " ++ show ret
@@ -270,7 +280,7 @@ genPrintParse =
     prop = forAll arbitrary printAndParseEq
 
     printAndParseEq :: Block -> Property
-    printAndParseEq b = Right b === AP.parseText P.chunk (show (PP.pprint b))
+    printAndParseEq b = Right b === AP.parseText P.chunk (show (pprint b))
 
 -- * Arbitrary instances
 
@@ -304,7 +314,7 @@ instance Arbitrary Stat where
     , LocalFunAssign <$> arbitrary <*> arbitrary
     , LocalAssign <$> listOf1 arbitrary <*> arbitrary
     -- Don't generate EmptyState - it's not printed by pretty-printer
-    -- , return $ EmptyStat ()
+    , return EmptyStat
     ]
   shrink = recursivelyShrink
 
