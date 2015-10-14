@@ -29,7 +29,7 @@ data LToken = LTokPlus               -- ^+
             | LTokDDot               -- ^..
             | LTokEllipsis           -- ^...
             | LTokDLT                -- ^<<
-            | LTokDGT                -- ^>>
+            | LTokDGT                -- ^\>\>
             | LTokAmpersand          -- ^&
             | LTokPipe               -- ^|
             | LTokDSlash             -- ^//
@@ -58,10 +58,13 @@ data LToken = LTokPlus               -- ^+
             | LTokUntil              -- ^until
             | LTokWhile              -- ^while
 
-            | LTokNum       String   -- ^number constant
-            | LTokSLit      String  -- ^string constant. Includes quotes!
-            | LTokIdent     String   -- ^identifier
+            | LTokNum                -- ^number constant
+            | LTokSLit               -- ^string constant
+            | LTokIdent              -- ^identifier
             | LTokEof                -- ^end of file
+
+            | LTokWhiteSpace         -- ^white space
+            | LTokComment            -- ^comment
     deriving Eq
 
 instance Show LToken where
@@ -122,7 +125,10 @@ instance Show LToken where
     show LTokUntil         = "`until`"
     show LTokWhile         = "`while`"
 
-    show (LTokNum   n)     = "number: " ++ show n
-    show (LTokSLit  s)     = "string: " ++ show s
-    show (LTokIdent i)     = "identifier: " ++ show i
+    show LTokWhiteSpace    = "white_space"
+    show LTokComment       = "comment"
+
+    show LTokNum           = "number"
+    show LTokSLit          = "string"
+    show LTokIdent         = "identifier"
     show LTokEof           = "EOF"

@@ -13,9 +13,24 @@ import           Control.Applicative (Applicative(..))
 import           Language.Lua.Token
 
 -- | Lua token with position information.
-type LTok = (LToken, SourcePos)
+data LTok = LTok
+  { ltokToken :: LToken
+  , ltokPos   :: SourcePos
+  , ltokText  :: String
+  } deriving (Show,Eq)
 
-type Action result = AlexInput -> Int -> Lexer result
+ltokEOF :: LTok
+ltokEOF = LTok { ltokText   = ""
+               , ltokToken  = LTokEof
+               , ltokPos    = SourcePos "" (-1) (-1)
+               }
+
+isEOF :: LTok -> Bool
+isEOF x = ltokToken x == LTokEof
+
+
+-- The matched string, its length, and the starting position
+type Action result = String -> Int -> SourcePos -> Lexer result
 newtype Lexer a = Lexer { unAlex :: AlexState -> Either (String,SourcePos) (AlexState, a) }
 
 getMode :: Lexer Mode
@@ -28,52 +43,62 @@ putInputBack :: String -> Lexer ()
 putInputBack str = Lexer $ \s -> Right (s{alex_inp=str ++ alex_inp s}, ())
 
 enterString :: Action (Maybe LTok)
-enterString (posn,_) len = setMode (QuoteMode posn (len-2) False "")
+enterString _ len posn = setMode (QuoteMode posn (len-2) False "")
 
 enterLongComment :: Action (Maybe LTok)
-enterLongComment (posn,_) len = setMode (QuoteMode posn (len-4) True "")
+enterLongComment _ len posn = setMode (QuoteMode posn (len-4) True "")
 
 enterComment :: Action (Maybe LTok)
-enterComment _ _ = setMode CommentMode
+enterComment _ _ p = setMode (CommentMode p)
 
 addCharToString :: Action (Maybe LTok)
-addCharToString (_,s) _ = do
+addCharToString s _ _ = do
   mode <- getMode
   case mode of
     QuoteMode posn len isComment body ->
-      setMode (QuoteMode posn len isComment (head s : body))
+      setMode (QuoteMode posn len isComment (reverse s ++ body))
     _ -> error "lexer broken: addCharToString"
 
 endComment :: Action (Maybe LTok)
-endComment _ _ = setMode NormalMode
+endComment s _ _ = do CommentMode p <- getMode
+                      _ <- setMode NormalMode
+                      return (Just LTok { ltokToken = LTokComment
+                                        , ltokPos   = p
+                                        , ltokText  = "--"++s })
 
 testAndEndString :: Action (Maybe LTok)
-testAndEndString (_,s) len = do
+testAndEndString s len _ = do
   let endlen = len-2
   QuoteMode posn startlen isComment val <- getMode
   if startlen /= endlen
-    then do putInputBack (tail (take len s))
+    then do putInputBack (tail s)
             setMode (QuoteMode posn startlen isComment (head s : val))
     else do _ <- setMode NormalMode
-            if isComment
-              then return Nothing
-              else do
-                let eqs = replicate startlen '='
-                return (Just (LTokSLit ("["++eqs++"["++reverse val++"]"++eqs++"]"), posn))
+            let eqs = replicate startlen '='
+                str = "["++eqs++"["++reverse val++"]"++eqs++"]"
+                mk t s' = LTok { ltokPos = posn, ltokToken = t, ltokText = s' }
+            return $ Just $
+              if isComment then mk LTokComment ("--" ++ str)
+                           else mk LTokSLit str
 
 
--- Helper to make LTokens with string value (like LTokNum, LTokSLit etc.)
-tokWValue :: (String -> LToken) -> AlexInput -> Int -> Lexer (Maybe LTok)
-tokWValue f (posn,s) len = return (Just (f (take len s), posn))
-
-tok :: LToken -> AlexInput -> Int -> Lexer (Maybe LTok)
-tok t (posn,_) _ = return (Just (t, posn))
+tok :: LToken -> Action (Maybe LTok)
+tok t s _ posn = return (Just LTok { ltokToken = t
+                                   , ltokPos   = posn
+                                   , ltokText  = s })
 
 -- | Drop the first line of a Lua file when it starts with a '#'
 dropSpecialComment :: String -> String
 dropSpecialComment ('#':xs) = dropWhile (/='\n') xs
 dropSpecialComment xs = xs
 -- Newline is preserved in order to ensure that line numbers stay correct
+
+dropWhiteSpace :: [LTok] -> [LTok]
+dropWhiteSpace = filter (not . isWhite . ltokToken)
+  where
+  isWhite x = x == LTokWhiteSpace || x == LTokComment
+
+
 
 ------------------------------------------------------------------------
 -- Custom Lexer wrapper
@@ -124,7 +149,7 @@ data AlexState = AlexState {
 
 data Mode
   = NormalMode
-  | CommentMode
+  | CommentMode SourcePos
   | QuoteMode SourcePos -- start
               Int       -- delim length
               Bool      -- is comment
@@ -167,3 +192,5 @@ instance Monad Lexer where
   m >>= k  = Lexer $ \s -> case unAlex m s of
                                 Left msg -> Left msg
                                 Right (s',a) -> unAlex (k a) s'
+
+

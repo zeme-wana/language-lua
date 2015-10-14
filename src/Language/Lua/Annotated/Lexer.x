@@ -5,9 +5,12 @@
 module Language.Lua.Annotated.Lexer
   ( llex
   , llexNamed
+  , llexNamedWithWhiteSpace
   , llexFile
-  , LTok
+  , LTok(..)
+  , ltokEOF
   , SourcePos(..)
+  , dropWhiteSpace
   ) where
 
 import           Language.Lua.Token
@@ -40,7 +43,7 @@ $longstr  = [ . \n ]                    -- valid character in a long string
 
 tokens :-
 
-    <0> $white+  ;
+    <0> $white+    { tok LTokWhiteSpace }
 
     -- keywords
     <0> "and"      { tok LTokAnd }
@@ -67,15 +70,15 @@ tokens :-
     <0> "while"    { tok LTokWhile }
 
     -- identifiers
-    <0> $letter $identletter* { tokWValue LTokIdent }
+    <0> $letter $identletter* { tok LTokIdent }
 
     -- number literals
-    <0> @mantpart @exppart?                  { tokWValue LTokNum }
-    <0> @hexprefix @mantparthex @expparthex? { tokWValue LTokNum }
+    <0> @mantpart @exppart?                  { tok LTokNum }
+    <0> @hexprefix @mantparthex @expparthex? { tok LTokNum }
 
     -- string literals
-    <0> \"($dqstr|@charesc)*\" { tokWValue LTokSLit }
-    <0> \'($sqstr|@charesc)*\' { tokWValue LTokSLit }
+    <0> \"($dqstr|@charesc)*\" { tok LTokSLit }
+    <0> \'($sqstr|@charesc)*\' { tok LTokSLit }
 
     -- long strings
     <0> \[ =* \[            { enterString }
@@ -85,8 +88,7 @@ tokens :-
     -- comments
     <0> "--" \[ =* \[       { enterLongComment }
     <0> "--"                { enterComment }
-    <state_comment> .       ;
-    <state_comment> \n      { endComment }
+    <state_comment> .*\n?   { endComment }
 
     -- operators
     <0> "+"   { tok LTokPlus }
@@ -132,7 +134,7 @@ modeCode :: Mode -> Int
 modeCode mode =
   case mode of
     NormalMode -> 0
-    CommentMode -> state_comment
+    CommentMode{} -> state_comment
     QuoteMode{} -> state_string
 
 monadScan' :: Lexer LTok
@@ -144,33 +146,46 @@ monadScan' = do
                   case mode of
                     QuoteMode start _ True _ -> throwErrorAt start "unterminated comment"
                     QuoteMode start _ False _ -> throwErrorAt start "unterminated string"
-                    _ -> return (LTokEof, SourcePos "" (-1) (-1))
+                    _ -> return ltokEOF
     AlexError (pos,ch:_) -> throwErrorAt pos ("at char " ++ [ch])
     AlexSkip  inp' len -> do
         setInput inp'
         monadScan'
     AlexToken inp' len action -> do
         setInput inp'
-        maybe monadScan' return =<< action inp len
+        let (pos,str) = inp
+        maybe monadScan' return =<< action (take len str) len pos
 
 scanner :: String -> String -> Either (String,SourcePos) [LTok]
 scanner name str = runAlex name str loop
   where loop = do
           t <- monadScan'
           case t of
-             (LTokEof,_) -> return [t]
+             _ | isEOF t -> return [t]
              t -> fmap (t:) loop
 
 -- | Lua lexer with default @=<string>@ name.
 llex :: String {- ^ chunk -} -> Either (String,SourcePos) [LTok]
 llex chunk = llexNamed chunk "=<string>"
 
+
 -- | Lua lexer with explicit name.
 llexNamed ::
   String {- ^ chunk -} ->
   String {- ^ name -} ->
   Either (String,SourcePos) [LTok]
-llexNamed chunk name = scanner name (dropSpecialComment chunk)
+llexNamed chunk name = fmap dropWhiteSpace
+                     $ scanner name
+                     $ dropSpecialComment chunk
+
+-- | Lua lexer with explicit name, preseves white space and comments.
+llexNamedWithWhiteSpace ::
+  String {- ^ chunk -} ->
+  String {- ^ name -} ->
+  Either (String,SourcePos) [LTok]
+llexNamedWithWhiteSpace chunk name = scanner name (dropSpecialComment chunk)
+
+
 
 -- | Run Lua lexer on a file.
 llexFile :: FilePath -> IO (Either (String,SourcePos) [LTok])
