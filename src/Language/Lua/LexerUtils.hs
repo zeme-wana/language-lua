@@ -91,7 +91,7 @@ endString s posn =
          str = Text.take stringLength text
          t | isComment = LTokComment
            | otherwise = LTokSLit
-     return $ Just LTok { ltokPos = posn, ltokLexeme = t, ltokText = str }
+     return $ Just LTok { ltokPos = start, ltokLexeme = t, ltokText = str }
 
 
 tok :: LToken -> Action (Maybe LTok)

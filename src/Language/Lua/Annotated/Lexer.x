@@ -131,6 +131,8 @@ tokens :-
     <0> "<<"  { tok LTokDLT }
     <0> ">>"  { tok LTokDGT }
 
+    .         { tok LTokUnexpected }
+
 {
 
 getStartCode :: Lexer Int
@@ -154,11 +156,9 @@ monadScan' = do
                     QuoteMode start rest _ True -> eofError start rest LTokUntermComment
                     QuoteMode start rest _ False -> eofError start rest LTokUntermString
                     _ -> return ltokEOF
-    AlexError (pos',_) ->
-      do setInput (move pos (Text.head text), Text.tail text)
-         return LTok { ltokLexeme = LTokUnexpected
-                     , ltokPos = pos
-                     , ltokText = Text.take 1 text}
+    AlexError _ -> error "language-lua lexer internal error"
+                   -- unexpected characters are handled within the lexer itself
+                   -- (last rule)
     AlexSkip inp' len ->
       do setInput inp'
          monadScan'
