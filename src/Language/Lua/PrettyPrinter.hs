@@ -156,7 +156,7 @@ instance LPretty FunName where
     pprint (FunName name s methods) = cat (punctuate dot (map pprint $ name:s)) <> method'
       where method' = case methods of
                         Nothing -> empty
-                        Just m' -> char ':' <> pprint (Text.unpack m')
+                        Just m' -> char ':' <> pprint m'
 
 instance LPretty FunBody where
     pprint = pprintFunction Nothing
@@ -168,8 +168,8 @@ pprintFunction funname (FunBody args vararg block) =
     header = case funname of
                Nothing -> text "function" <+> args'
                Just n  -> text "function" <+> n <> args'
-    vararg' = if vararg then ["..."] else []
-    args' = parens (align (cat (punctuate (comma <> space) (map pprint (map Text.unpack args ++ vararg')))))
+    vararg' = if vararg then [text "..."] else []
+    args' = parens (align (cat (punctuate (comma <> space) (map pprint args ++ vararg'))))
     body = pprint block
     end = text "end"
 
@@ -237,5 +237,5 @@ instance LPretty Stat where
                       Just es -> equals </> intercalate comma (map pprint es)
     pprint EmptyStat = text ";"
 
-instance LPretty Text where
-  pprint = text . Text.unpack
+instance LPretty Name where
+  pprint (Name n) = text (Text.unpack n)

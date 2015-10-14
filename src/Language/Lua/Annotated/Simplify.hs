@@ -8,7 +8,7 @@ import qualified Language.Lua.Annotated.Syntax as A
 import           Language.Lua.Syntax
 
 sName :: A.Name a -> Name
-sName (A.Name _ s) = s
+sName (A.Name _ s) = Name s
 
 sStat :: A.Stat a -> Stat
 sStat (A.Assign _ vs es) = Assign (map sVar vs) (map sExp es)

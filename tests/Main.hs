@@ -23,6 +23,8 @@ import           Control.DeepSeq                 (deepseq, force)
 import           Control.Monad                   (forM_)
 import qualified Data.ByteString.Lazy            as B
 import           Data.Char                       (isSpace)
+import qualified Data.Text                       as Text
+import qualified Data.Text.IO                    as Text
 import           GHC.Generics
 import           Prelude                         hiding (Ordering (..), exp)
 
@@ -46,7 +48,7 @@ propertyTests = testGroup "Property tests" [{-genPrintParse-}]
 
 parseExps :: String -> Maybe [Exp]
 parseExps contents =
-  mapM (either (const Nothing) Just . AP.parseText P.exp)
+  mapM (either (const Nothing) Just . AP.parseText P.exp . Text.pack)
        (lines contents)
 
 literalDecodingTests :: TestTree
@@ -158,18 +160,18 @@ stringTests = testGroup "String tests"
                assertEqual
                  "String not same"
                  expected
-                 (interpretStringLiteral str))
+                 (interpretStringLiteral (Text.unpack str)))
 
     , testCase
         "Round-trip through the pretty-printer"
        (do let file = "tests/string-literal-roundtrip.lua"
-           contents <- readFile file
+           contents <- Text.readFile file
            case P.parseText P.chunk contents of
              Left parseErr -> assertFailure (show parseErr)
              Right x -> assertEqual
                           "pretty printer didn't preserve"
                           contents
-                          (show (pprint x) ++ "\n"))
+                          (Text.pack (show (pprint x) ++ "\n")))
                         -- text file lines always end in a newline
                         -- but the pretty printer doesn't know this
     ]
@@ -194,7 +196,7 @@ numberTests = testGroup "Number tests"
 regressions :: TestTree
 regressions = testGroup "Regression tests"
     [ testCase "Lexing comment with text \"EOF\" in it" $
-        assertEqual "Lexing is wrong" (Right [L.ltokEOF]) (L.llex "--EOF")
+        assertEqual "Lexing is wrong" [L.ltokEOF] (L.llex "--EOF")
     , testCase "Binary/unary operator parsing/printing" $ do
         pp "2^3^2 == 2^(3^2)"
         pp "2^3*4 == (2^3)*4"
@@ -212,10 +214,10 @@ regressions = testGroup "Regression tests"
         show (L.llex "'\\\"'") `deepseq` return ()
         show (L.llex "\"\\\'\"") `deepseq` return ()
     , testCase "Lexing Lua string: '\\\\\"'" $ do
-        let get t = (L.ltokToken t, L.ltokText t)
+        let get t = (L.ltokLexeme t, L.ltokText t)
         assertEqual "String lexed wrong"
-          (Right [(T.LTokSLit, "'\\\\\"'"), (T.LTokEof,"")])
-          (fmap (map get) (L.llex "'\\\\\"'"))
+          [(T.LTokSLit, "'\\\\\"'"), (T.LTokEof,"")]
+          (map get (L.llex "'\\\\\"'"))
     , testCase "Lexing long literal `[====[ ... ]====]`" $
         show (L.llex "[=[]]=]") `deepseq` return ()
     , testCase "Handling \\z" $
@@ -240,10 +242,10 @@ regressions = testGroup "Regression tests"
     ]
   where
     pp :: String -> Assertion
-    pp = ppTest (P.parseText P.exp) (show . pprint)
+    pp = ppTest (P.parseText P.exp . Text.pack) (show . pprint)
 
     ppChunk :: String -> Assertion
-    ppChunk = ppTest (P.parseText P.chunk) (show . pprint)
+    ppChunk = ppTest (P.parseText P.chunk . Text.pack) (show . pprint)
 
     ppTest :: Show err => (String -> Either err ret) -> (ret -> String) -> String -> Assertion
     ppTest parser printer str =
@@ -282,7 +284,7 @@ genPrintParse =
     prop = forAll arbitrary printAndParseEq
 
     printAndParseEq :: Block -> Property
-    printAndParseEq b = Right b === AP.parseText P.chunk (show (pprint b))
+    printAndParseEq b = Right b === AP.parseText P.chunk (Text.pack (show (pprint b)))
 
 -- * Arbitrary instances
 
@@ -324,8 +326,8 @@ instance Arbitrary Exp where
   arbitrary = oneof
     [ return Nil
     , Bool <$> arbitrary
-    , Number <$> listOf1 (elements ['0'..'9']) -- TODO: implement number lexer tests
-    , String <$> arbitraryLuaString
+    , Number . Text.pack <$> listOf1 (elements ['0'..'9']) -- TODO: implement number lexer tests
+    , String . Text.pack <$> arbitraryLuaString
     , return Vararg
     , EFunDef <$> arbitrary
     , PrefixExp <$> arbitrary
@@ -333,7 +335,7 @@ instance Arbitrary Exp where
     , Binop <$> arbitrary <*> arbitrary <*> arbitrary
     , Unop <$> arbitrary <*> expNotUnop
     ]
-  shrink = recursivelyShrink
+  shrink = const []
 
 -- | Any expression except Unop. (see #2)
 expNotUnop :: Gen Exp
@@ -404,6 +406,10 @@ instance Arbitrary FunArg where
   arbitrary = oneof
     [ Args <$> arbitrary
     , TableArg <$> arbitrary
-    , StringArg <$> arbitrary
+    , StringArg . Text.pack . unwrapLuaString <$> arbitrary
     ]
-  shrink = recursivelyShrink
+  shrink = const []
+
+instance Arbitrary Name where
+  arbitrary = Name . Text.pack <$> listOf1 (elements ['a'..'z'])
+  shrink = const []

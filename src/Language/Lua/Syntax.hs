@@ -9,7 +9,8 @@ import           Data.Text       (Text)
 import           GHC.Generics    (Generic)
 import           Prelude         hiding (EQ, GT, LT)
 
-type Name = Text
+newtype Name = Name Text
+  deriving (Show, Eq, Data, Typeable, Generic)
 
 data Stat
     = Assign [Var] [Exp] -- ^var1, var2 .. = exp1, exp2 ..
@@ -89,6 +90,7 @@ data FunArg
     | StringArg Text -- ^string
     deriving (Show, Eq, Data, Typeable, Generic)
 
+instance NFData Name
 instance NFData Stat
 instance NFData Exp
 instance NFData Var
