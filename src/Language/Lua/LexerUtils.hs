@@ -59,9 +59,9 @@ enterLongComment t posn =
      setMode (QuoteMode posn (t<>inp) (Text.length t - 4) True)
 
 enterComment :: Action (Maybe LTok)
-enterComment _ p =
+enterComment t p =
   do inp <- fmap alex_inp getState
-     setMode (CommentMode p inp)
+     setMode (CommentMode p (t<>inp))
 
 endComment :: Action (Maybe LTok)
 endComment s posn =

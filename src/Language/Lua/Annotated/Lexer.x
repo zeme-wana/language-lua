@@ -93,7 +93,7 @@ tokens :-
     -- comments
     <0> "--" \[ =* \[       { enterLongComment }
     <0> "--"                { enterComment }
-    <state_comment> .*\n?   { endComment }
+    <state_comment> .*      { endComment }
 
     -- operators
     <0> "+"   { tok LTokPlus }
