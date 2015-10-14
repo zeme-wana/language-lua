@@ -7,6 +7,7 @@ import           Control.Monad (ap, liftM)
 import           Data.Char (isAscii, ord)
 import           Data.Text (Text)
 import qualified Data.Text as Text
+import           Data.Monoid ((<>))
 import           Data.Word (Word8)
 
 #if !MIN_VERSION_base(4,8,0)
@@ -48,21 +49,26 @@ setMode :: Mode -> Lexer (Maybe LTok)
 setMode mode = Lexer $ \s -> R s{alex_mode=mode} Nothing
 
 enterString :: Action (Maybe LTok)
-enterString t posn = setMode (QuoteMode posn (Text.length t - 2) False)
+enterString t posn =
+  do inp <- fmap alex_inp getState
+     setMode (QuoteMode posn (t<>inp) (Text.length t - 2) False)
 
 enterLongComment :: Action (Maybe LTok)
-enterLongComment t posn = setMode (QuoteMode posn (Text.length t - 4) True)
+enterLongComment t posn =
+  do inp <- fmap alex_inp getState
+     setMode (QuoteMode posn (t<>inp) (Text.length t - 4) True)
 
 enterComment :: Action (Maybe LTok)
-enterComment _ p = setMode (CommentMode p)
+enterComment _ p =
+  do inp <- fmap alex_inp getState
+     setMode (CommentMode p inp)
 
 endComment :: Action (Maybe LTok)
 endComment s posn =
-  do CommentMode start <- getMode
+  do CommentMode start text <- getMode
      _ <- setMode NormalMode
-     text <- getFile
-     let str = Text.take (sourcePosIndex posn - sourcePosIndex start + Text.length s)
-             $ Text.drop (sourcePosIndex start) text
+     let commentLength = sourcePosIndex posn - sourcePosIndex start + Text.length s
+         str = Text.take commentLength text
      return (Just LTok { ltokLexeme = LTokComment
                        , ltokPos   = start
                        , ltokText  = str
@@ -71,7 +77,7 @@ endComment s posn =
 testAndEndString :: Action (Maybe LTok)
 testAndEndString s posn = do
   let endlen = Text.length s - 2
-  QuoteMode start startlen isComment <- getMode
+  QuoteMode start text startlen isComment <- getMode
   if startlen /= endlen
     then do let c = Text.head s
             file <- getFile
@@ -79,9 +85,8 @@ testAndEndString s posn = do
             setInput (p, Text.drop (sourcePosIndex p) file)
             return Nothing
     else do _ <- setMode NormalMode
-            text <- getFile
-            let str = Text.take (sourcePosIndex posn - sourcePosIndex start + Text.length s)
-                    $ Text.drop (sourcePosIndex start) text
+            let stringLength = sourcePosIndex posn - sourcePosIndex start + Text.length s
+                str = Text.take stringLength text
                 t | isComment = LTokComment
                   | otherwise = LTokSLit
             return $ Just LTok { ltokPos = posn, ltokLexeme = t, ltokText = str }
@@ -159,8 +164,9 @@ data AlexState = AlexState
 
 data Mode
   = NormalMode
-  | CommentMode SourcePos
+  | CommentMode SourcePos Text
   | QuoteMode SourcePos -- start
+              Text
               Int       -- delim length
               Bool      -- is comment
                 -- ^ start delimlen iscomment
@@ -187,15 +193,14 @@ getInput
 getFile :: Lexer Text
 getFile = Lexer $ \s -> R s (alex_file s)
 
-eofError :: SourcePos -> LToken -> Lexer LTok
-eofError posn t =
-  do text <- getFile
-     setInput (posn, Text.empty)
+eofError :: SourcePos -> Text -> LToken -> Lexer LTok
+eofError posn text t =
+  do setInput (posn, Text.empty)
      _ <- setMode NormalMode
      return LTok
        { ltokLexeme = t
        , ltokPos   = posn
-       , ltokText  = Text.drop (sourcePosIndex posn) text
+       , ltokText  = text
        }
 
 setInput :: AlexInput -> Lexer ()

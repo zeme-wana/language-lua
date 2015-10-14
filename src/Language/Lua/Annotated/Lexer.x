@@ -149,8 +149,8 @@ monadScan' = do
   case alexScan (pos,text) sc of
     AlexEOF -> do mode <- getMode
                   case mode of
-                    QuoteMode start _ True -> eofError start LTokUntermComment
-                    QuoteMode start _ False -> eofError start LTokUntermString
+                    QuoteMode start rest _ True -> eofError start rest LTokUntermComment
+                    QuoteMode start rest _ False -> eofError start rest LTokUntermString
                     _ -> return ltokEOF
     AlexError (pos',_) ->
       do setInput (move pos (Text.head text), Text.tail text)
