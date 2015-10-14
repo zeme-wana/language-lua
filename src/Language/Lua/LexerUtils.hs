@@ -74,22 +74,24 @@ endComment s posn =
                        , ltokText  = str
                        })
 
-testAndEndString :: Action (Maybe LTok)
-testAndEndString s posn = do
-  let endlen = Text.length s - 2
-  QuoteMode start text startlen isComment <- getMode
-  if startlen /= endlen
-    then do let c = Text.head s
-            file <- getFile
-            let p = move posn c
-            setInput (p, Text.drop (sourcePosIndex p) file)
-            return Nothing
-    else do _ <- setMode NormalMode
-            let stringLength = sourcePosIndex posn - sourcePosIndex start + Text.length s
-                str = Text.take stringLength text
-                t | isComment = LTokComment
-                  | otherwise = LTokSLit
-            return $ Just LTok { ltokPos = posn, ltokLexeme = t, ltokText = str }
+endStringPredicate ::
+  Mode ->
+  AlexInput {- ^ input stream before the token -} ->
+  Int       {- ^ length of the token           -} ->
+  AlexInput {- ^ input stream after the token  -} ->
+  Bool
+endStringPredicate (QuoteMode _ _ startlen _) _ len _ = len - 2 == startlen
+endStringPredicate _ _ _ _ = error "endStringPredicate called from wrong mode"
+
+endString :: Action (Maybe LTok)
+endString s posn =
+  do QuoteMode start text _ isComment <- getMode
+     _ <- setMode NormalMode
+     let stringLength = sourcePosIndex posn - sourcePosIndex start + Text.length s
+         str = Text.take stringLength text
+         t | isComment = LTokComment
+           | otherwise = LTokSLit
+     return $ Just LTok { ltokPos = posn, ltokLexeme = t, ltokText = str }
 
 
 tok :: LToken -> Action (Maybe LTok)
@@ -130,6 +132,10 @@ type AlexInput = (SourcePos,     -- current position
 
 startPos :: String -> SourcePos
 startPos n = SourcePos n 0 1 1
+
+-- This is unused but alex needs the definition to exist
+alexInputPrevChar :: a -> ()
+alexInputPrevChar _ = ()
 
 alexGetByte :: AlexInput -> Maybe (Word8,AlexInput)
 alexGetByte (p,text) =

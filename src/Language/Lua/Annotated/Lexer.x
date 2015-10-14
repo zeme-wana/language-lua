@@ -87,7 +87,8 @@ tokens :-
 
     -- long strings
     <0> \[ =* \[            { enterString }
-    <state_string> \] =* \] { testAndEndString }
+    <state_string> \] =* \] / { endStringPredicate }
+                              { endString }
     <state_string> $longstr ;
 
     -- comments
@@ -146,7 +147,8 @@ monadScan' :: Lexer LTok
 monadScan' = do
   (pos,text) <- getInput
   sc <- getStartCode
-  case alexScan (pos,text) sc of
+  mode <- getMode
+  case alexScanUser mode (pos,text) sc of
     AlexEOF -> do mode <- getMode
                   case mode of
                     QuoteMode start rest _ True -> eofError start rest LTokUntermComment
