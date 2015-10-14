@@ -36,31 +36,28 @@ isEOF x = ltokLexeme x == LTokEof
 -- The matched token and the starting position
 type Action result = Text -> SourcePos -> Lexer result
 
-data R a = R { rState :: !AlexState, rResult :: a}
-newtype Lexer a = Lexer { unAlex :: AlexState -> R a }
-
 getState :: Lexer AlexState
-getState = Lexer $ \s -> R s s
+getState = Lexer $ \s -> (s,s)
 
 getMode :: Lexer Mode
 getMode = fmap alex_mode getState
 
 setMode :: Mode -> Lexer (Maybe LTok)
-setMode mode = Lexer $ \s -> R s{alex_mode=mode} Nothing
+setMode mode = Lexer $ \s -> (s{alex_mode=mode},Nothing)
 
 enterString :: Action (Maybe LTok)
 enterString t posn =
-  do inp <- fmap alex_inp getState
-     setMode (QuoteMode posn (t<>inp) (Text.length t - 2) False)
+  do inp <- fmap input_text getInput
+     setMode (QuoteMode posn (t<>inp) (Text.length t) False)
 
 enterLongComment :: Action (Maybe LTok)
 enterLongComment t posn =
-  do inp <- fmap alex_inp getState
-     setMode (QuoteMode posn (t<>inp) (Text.length t - 4) True)
+  do inp <- fmap input_text getInput
+     setMode (QuoteMode posn (t<>inp) (Text.length t - 2) True)
 
 enterComment :: Action (Maybe LTok)
 enterComment t p =
-  do inp <- fmap alex_inp getState
+  do inp <- fmap input_text getInput
      setMode (CommentMode p (t<>inp))
 
 endComment :: Action (Maybe LTok)
@@ -80,7 +77,7 @@ endStringPredicate ::
   Int       {- ^ length of the token           -} ->
   AlexInput {- ^ input stream after the token  -} ->
   Bool
-endStringPredicate (QuoteMode _ _ startlen _) _ len _ = len - 2 == startlen
+endStringPredicate (QuoteMode _ _ startlen _) _ len _ = len == startlen
 endStringPredicate _ _ _ _ = error "endStringPredicate called from wrong mode"
 
 endString :: Action (Maybe LTok)
@@ -127,9 +124,6 @@ data SourcePos = SourcePos
 instance NFData SourcePos where
   rnf (SourcePos _ _ _ _) = ()
 
-type AlexInput = (SourcePos,     -- current position
-                  Text)          -- input text
-
 startPos :: String -> SourcePos
 startPos n = SourcePos n 0 1 1
 
@@ -138,10 +132,10 @@ alexInputPrevChar :: a -> ()
 alexInputPrevChar _ = ()
 
 alexGetByte :: AlexInput -> Maybe (Word8,AlexInput)
-alexGetByte (p,text) =
+alexGetByte (AlexInput p text) =
   do (c,text') <- Text.uncons text
      let p' = move p c
-     return (byteForChar c, (p',text'))
+     return (byteForChar c, AlexInput p' text')
 
 move :: SourcePos -> Char -> SourcePos
 move (SourcePos name index line column) c =
@@ -161,12 +155,17 @@ byteForChar c
                     -- the Lua lexer doesn't distinguish between
                     -- any of the non-ascii bytes
 
+
+newtype Lexer a = Lexer { unAlex :: AlexState -> (AlexState, a) }
+
 data AlexState = AlexState
-      { alex_pos  :: !SourcePos  -- ^ position at current input location
-      , alex_inp  :: !Text
-      , alex_mode :: !Mode       -- ^ the lexer mode
-      , alex_file :: !Text       -- ^ the whole file
+      { alex_inp  :: AlexInput
+      , alex_mode :: Mode       -- ^ the lexer mode
       }
+
+data AlexInput = AlexInput { input_pos :: !SourcePos
+                           , input_text :: !Text
+                           }
 
 data Mode
   = NormalMode
@@ -183,25 +182,22 @@ runAlex :: String -> Text -> Lexer LTok -> [LTok]
 runAlex name input (Lexer f) = go s0
   where
   s0 = AlexState
-        { alex_pos = startPos name
-        , alex_inp = input
+        { alex_inp = AlexInput (startPos name) input
         , alex_mode = NormalMode
-        , alex_file = input
         }
   go s = case f s of
-           R s' x | isEOF x -> [x]
+           (s',x) | isEOF x -> [x]
                   | otherwise -> x : go s'
 
 getInput :: Lexer AlexInput
-getInput
- = Lexer $ \s@AlexState{alex_pos=pos,alex_inp=inp} -> R s (pos,inp)
+getInput = Lexer $ \s@AlexState{alex_inp=inp} -> (s,inp)
 
-getFile :: Lexer Text
-getFile = Lexer $ \s -> R s (alex_file s)
+setInput :: AlexInput -> Lexer ()
+setInput inp = Lexer $ \s -> (s{alex_inp=inp},())
 
 eofError :: SourcePos -> Text -> LToken -> Lexer LTok
 eofError posn text t =
-  do setInput (posn, Text.empty)
+  do setInput (AlexInput posn Text.empty)
      _ <- setMode NormalMode
      return LTok
        { ltokLexeme = t
@@ -209,20 +205,18 @@ eofError posn text t =
        , ltokText  = text
        }
 
-setInput :: AlexInput -> Lexer ()
-setInput (posn,text) = Lexer $ \s -> R s{alex_pos=posn,alex_inp=text} ()
 
 instance Functor Lexer where
   fmap = liftM
 
 instance Applicative Lexer where
-  pure a = Lexer $ \s -> R s a
+  pure a = Lexer $ \s -> (s,a)
   (<*>) = ap
 
 instance Monad Lexer where
   return = pure
   m >>= k  = Lexer $ \s ->
               case unAlex m s of
-                R s' a -> unAlex (k a) s'
+                (s',a) -> unAlex (k a) s'
 
 

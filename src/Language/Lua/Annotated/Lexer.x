@@ -147,10 +147,10 @@ modeCode mode =
 
 monadScan' :: Lexer LTok
 monadScan' = do
-  (pos,text) <- getInput
+  inp@(AlexInput pos text) <- getInput
   sc <- getStartCode
   mode <- getMode
-  case alexScanUser mode (pos,text) sc of
+  case alexScanUser mode inp sc of
     AlexEOF -> do mode <- getMode
                   case mode of
                     QuoteMode start rest _ True -> eofError start rest LTokUntermComment
@@ -162,8 +162,8 @@ monadScan' = do
     AlexSkip inp' len ->
       do setInput inp'
          monadScan'
-    AlexToken (pos',text') len action ->
-      do setInput (pos', text')
+    AlexToken inp' len action ->
+      do setInput inp'
          let str = Text.take len text
          maybe monadScan' return =<< action str pos
 
