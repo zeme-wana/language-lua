@@ -65,6 +65,10 @@ data LToken = LTokPlus               -- ^+
 
             | LTokWhiteSpace         -- ^white space
             | LTokComment            -- ^comment
+
+            | LTokUntermString       -- ^ unterminated string
+            | LTokUntermComment      -- ^ unterminated comment
+            | LTokUnexpected         -- ^ unexpected character
     deriving Eq
 
 instance Show LToken where
@@ -132,3 +136,7 @@ instance Show LToken where
     show LTokSLit          = "string"
     show LTokIdent         = "identifier"
     show LTokEof           = "EOF"
+
+    show LTokUntermString  = "unterminated_string"
+    show LTokUntermComment = "unterminated_comment"
+    show LTokUnexpected    = "unexpected_character"

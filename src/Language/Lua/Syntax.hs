@@ -5,10 +5,11 @@ module Language.Lua.Syntax where
 
 import           Control.DeepSeq (NFData)
 import           Data.Data       (Data, Typeable)
+import           Data.Text       (Text)
 import           GHC.Generics    (Generic)
 import           Prelude         hiding (EQ, GT, LT)
 
-type Name = String
+type Name = Text
 
 data Stat
     = Assign [Var] [Exp] -- ^var1, var2 .. = exp1, exp2 ..
@@ -31,8 +32,8 @@ data Stat
 data Exp
     = Nil
     | Bool Bool
-    | Number String
-    | String String
+    | Number Text
+    | String Text
     | Vararg -- ^/.../
     | EFunDef FunBody -- ^/function (..) .. end/
     | PrefixExp PrefixExp
@@ -85,7 +86,7 @@ data FunCall
 data FunArg
     = Args [Exp] -- ^list of args
     | TableArg [TableField] -- ^table constructor
-    | StringArg String -- ^string
+    | StringArg Text -- ^string
     deriving (Show, Eq, Data, Typeable, Generic)
 
 instance NFData Stat

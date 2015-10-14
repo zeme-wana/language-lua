@@ -11,12 +11,14 @@ module Language.Lua.Annotated.Parser
   , stat
   ) where
 
-import Control.Monad (liftM,ap)
-import Prelude hiding (LT,GT,EQ,exp)
+import           Control.Monad (liftM,ap)
+import           Prelude hiding (LT,GT,EQ,exp)
+import           Data.Text (Text)
+import qualified Data.Text.IO as Text
 
-import Language.Lua.Token           (LToken(..))
-import Language.Lua.Annotated.Lexer (SourcePos(..), LTok(..), llexNamed)
-import Language.Lua.Annotated.Syntax
+import           Language.Lua.Token           (LToken(..))
+import           Language.Lua.Annotated.Lexer (SourcePos(..), LTok(..), llexNamed)
+import           Language.Lua.Annotated.Syntax
 
 }
 
@@ -308,38 +310,35 @@ blockAnn :: [Stat SourcePos] -> Maybe [Exp SourcePos] -> SourcePos
 blockAnn xs mbys =
   case map ann xs ++ maybe [] (map ann) mbys of
     a : _ -> a
-    _     -> SourcePos "" 1 1
+    _     -> SourcePos "" 0 1 1
 
 showPos :: SourcePos -> String
-showPos (SourcePos _ l c) = "line: " ++ show l ++ " column: " ++ show c
+showPos p = "line: " ++ show (sourcePosLine p) ++
+            " column: " ++ show (sourcePosColumn p)
 
 -- | Runs Lua lexer before parsing. Use @parseNamedText stat "name"@ to parse
 -- statements, and @parseText exp "name"@ to parse expressions.
 parseNamedText ::
   Parser a ->
-  String {- ^ chunk -} ->
   String {- ^ name -} ->
+  Text {- ^ chunk -} ->
   Either (String, SourcePos) a
 parseNamedText p n xs =
-  case llexNamed xs n of
-    Left (e, pos) ->
-      Left ("lexical error: " ++ e, pos)
-    Right ys ->
-      case runParser p ys of
-        Left (msg,pos) ->
-          Left ("parser error: " ++ show msg, pos)
-        Right chunk -> Right chunk
+  case runParser p (llexNamed n xs) of
+    Left (msg,pos) ->
+      Left ("parser error: " ++ show msg, pos)
+    Right chunk -> Right chunk
 
 -- | Runs Lua lexer before parsing. Use @parseText stat@ to parse
 -- statements, and @parseText exp@ to parse expressions.
 parseText ::
   Parser a ->
-  String {- ^ chunk -} ->
+  Text {- ^ chunk -} ->
   Either (String, SourcePos) a
 parseText p = parseNamedText p "=<string>"
 
 -- | Parse a Lua file. You can use @parseText chunk@ to parse a file from a string.
 parseFile :: FilePath -> IO (Either (String, SourcePos) (Block SourcePos))
-parseFile fp = fmap (parseNamedText chunk fp) (readFile fp)
+parseFile fp = fmap (parseNamedText chunk fp) (Text.readFile fp)
 
 }

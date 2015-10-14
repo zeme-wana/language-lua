@@ -6,10 +6,11 @@ module Language.Lua.Annotated.Syntax where
 
 import           Control.DeepSeq (NFData)
 import           Data.Data       (Data, Typeable)
+import           Data.Text       (Text)
 import           GHC.Generics    (Generic)
 import           Prelude         hiding (EQ, GT, LT)
 
-data Name a = Name a String deriving (Show, Eq, Functor, Data, Typeable, Generic)
+data Name a = Name a Text deriving (Show, Eq, Functor, Data, Typeable, Generic)
 
 data Stat a
     = Assign a [Var a] [Exp a] -- ^var1, var2 .. = exp1, exp2 ..
@@ -32,8 +33,8 @@ data Stat a
 data Exp a
     = Nil a
     | Bool a Bool
-    | Number a String
-    | String a String
+    | Number a Text
+    | String a Text
     | Vararg a -- ^/.../
     | EFunDef a (FunDef a) -- ^/function (..) .. end/
     | PrefixExp a (PrefixExp a)
@@ -92,7 +93,7 @@ data FunCall a
 data FunArg a
     = Args a [Exp a] -- ^list of args
     | TableArg a (Table a) -- ^table constructor
-    | StringArg a String -- ^string
+    | StringArg a Text -- ^string
     deriving (Show, Eq, Functor, Data, Typeable, Generic)
 
 

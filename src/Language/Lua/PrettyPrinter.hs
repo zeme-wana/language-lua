@@ -15,6 +15,9 @@ import           Prelude                 hiding (EQ, GT, LT, (<$>))
 import           Prelude                 hiding (EQ, GT, LT)
 #endif
 
+import           Data.Text (Text)
+import qualified Data.Text as Text
+
 import           Text.PrettyPrint.Leijen hiding ((<$>))
 
 import           Language.Lua.Syntax
@@ -46,8 +49,8 @@ instance LPretty Bool where
 instance LPretty Exp where
     pprint' _ Nil            = text "nil"
     pprint' _ (Bool s)       = pprint s
-    pprint' _ (Number n)     = text n
-    pprint' _ (String s)     = text s
+    pprint' _ (Number n)     = text (Text.unpack n)
+    pprint' _ (String s)     = text (Text.unpack s)
     pprint' _ Vararg         = text "..."
     pprint' _ (EFunDef f)    = pprint f
     pprint' _ (PrefixExp pe) = pprint pe
@@ -153,7 +156,7 @@ instance LPretty FunName where
     pprint (FunName name s methods) = cat (punctuate dot (map pprint $ name:s)) <> method'
       where method' = case methods of
                         Nothing -> empty
-                        Just m' -> char ':' <> pprint m'
+                        Just m' -> char ':' <> pprint (Text.unpack m')
 
 instance LPretty FunBody where
     pprint = pprintFunction Nothing
@@ -166,7 +169,7 @@ pprintFunction funname (FunBody args vararg block) =
                Nothing -> text "function" <+> args'
                Just n  -> text "function" <+> n <> args'
     vararg' = if vararg then ["..."] else []
-    args' = parens (align (cat (punctuate (comma <> space) (map pprint (args ++ vararg')))))
+    args' = parens (align (cat (punctuate (comma <> space) (map pprint (map Text.unpack args ++ vararg')))))
     body = pprint block
     end = text "end"
 
@@ -178,7 +181,7 @@ instance LPretty FunArg where
     pprint (Args [fun@EFunDef{}]) = parens (pprint fun)
     pprint (Args exps)   = parens (align (fillSep (punctuate comma (map (align . pprint) exps))))
     pprint (TableArg t)  = pprint t
-    pprint (StringArg s) = text s
+    pprint (StringArg s) = text (Text.unpack s)
 
 instance LPretty Stat where
     pprint (Assign names vals)
@@ -233,3 +236,6 @@ instance LPretty Stat where
                       Nothing -> empty
                       Just es -> equals </> intercalate comma (map pprint es)
     pprint EmptyStat = text ";"
+
+instance LPretty Text where
+  pprint = text . Text.unpack

@@ -13,6 +13,10 @@ module Language.Lua.Annotated.Lexer
   , dropWhiteSpace
   ) where
 
+import           Data.Text (Text)
+import qualified Data.Text as Text
+import qualified Data.Text.IO as Text
+
 import           Language.Lua.Token
 import           Language.Lua.LexerUtils
 
@@ -83,7 +87,7 @@ tokens :-
     -- long strings
     <0> \[ =* \[            { enterString }
     <state_string> \] =* \] { testAndEndString }
-    <state_string> $longstr { addCharToString }
+    <state_string> $longstr ;
 
     -- comments
     <0> "--" \[ =* \[       { enterLongComment }
@@ -128,7 +132,7 @@ tokens :-
 {
 
 getStartCode :: Lexer Int
-getStartCode = Lexer $ \s@AlexState{alex_mode=mode} -> Right (s, modeCode mode)
+getStartCode = fmap modeCode getMode
 
 modeCode :: Mode -> Int
 modeCode mode =
@@ -139,24 +143,28 @@ modeCode mode =
 
 monadScan' :: Lexer LTok
 monadScan' = do
-  inp <- getInput
+  (pos,text) <- getInput
   sc <- getStartCode
-  case alexScan inp sc of
+  case alexScan (pos,text) sc of
     AlexEOF -> do mode <- getMode
                   case mode of
-                    QuoteMode start _ True _ -> throwErrorAt start "unterminated comment"
-                    QuoteMode start _ False _ -> throwErrorAt start "unterminated string"
+                    QuoteMode start _ True -> eofError start LTokUntermComment
+                    QuoteMode start _ False -> eofError start LTokUntermString
                     _ -> return ltokEOF
-    AlexError (pos,ch:_) -> throwErrorAt pos ("at char " ++ [ch])
-    AlexSkip  inp' len -> do
-        setInput inp'
-        monadScan'
-    AlexToken inp' len action -> do
-        setInput inp'
-        let (pos,str) = inp
-        maybe monadScan' return =<< action (take len str) len pos
+    AlexError (pos',_) ->
+      do setSourcePos (move pos (Text.head text))
+         return LTok { ltokToken = LTokUnexpected
+                     , ltokPos = pos
+                     , ltokText = Text.take 1 text}
+    AlexSkip  (pos',_) len ->
+      do setSourcePos pos'
+         monadScan'
+    AlexToken (pos',_) len action ->
+      do setSourcePos pos'
+         let str = Text.take len (Text.drop (sourcePosIndex pos) text)
+         maybe monadScan' return =<< action str pos
 
-scanner :: String -> String -> Either (String,SourcePos) [LTok]
+scanner :: String -> Text -> [LTok]
 scanner name str = runAlex name str loop
   where loop = do
           t <- monadScan'
@@ -165,30 +173,30 @@ scanner name str = runAlex name str loop
              t -> fmap (t:) loop
 
 -- | Lua lexer with default @=<string>@ name.
-llex :: String {- ^ chunk -} -> Either (String,SourcePos) [LTok]
-llex chunk = llexNamed chunk "=<string>"
+llex :: Text {- ^ chunk -} -> [LTok]
+llex = llexNamed "=<string>"
 
 
 -- | Lua lexer with explicit name.
 llexNamed ::
-  String {- ^ chunk -} ->
   String {- ^ name -} ->
-  Either (String,SourcePos) [LTok]
-llexNamed chunk name = fmap dropWhiteSpace
+  Text   {- ^ chunk -} ->
+  [LTok]
+llexNamed name chunk = dropWhiteSpace
                      $ scanner name
                      $ dropSpecialComment chunk
 
 -- | Lua lexer with explicit name, preseves white space and comments.
 llexNamedWithWhiteSpace ::
-  String {- ^ chunk -} ->
   String {- ^ name -} ->
-  Either (String,SourcePos) [LTok]
-llexNamedWithWhiteSpace chunk name = scanner name (dropSpecialComment chunk)
+  Text   {- ^ chunk -} ->
+  [LTok]
+llexNamedWithWhiteSpace name chunk = scanner name (dropSpecialComment chunk)
 
 
 
 -- | Run Lua lexer on a file.
-llexFile :: FilePath -> IO (Either (String,SourcePos) [LTok])
-llexFile fp = fmap (`llexNamed` fp) (readFile fp)
+llexFile :: FilePath -> IO [LTok]
+llexFile fp = fmap (llexNamed fp) (Text.readFile fp)
 
 }
