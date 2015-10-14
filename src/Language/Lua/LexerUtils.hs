@@ -3,7 +3,7 @@
 module Language.Lua.LexerUtils where
 
 import           Control.DeepSeq (NFData(..))
-import           Control.Monad (ap, liftM, guard)
+import           Control.Monad (ap, liftM)
 import           Data.Char (isAscii, ord)
 import           Data.Text (Text)
 import qualified Data.Text as Text
@@ -35,16 +35,17 @@ isEOF x = ltokLexeme x == LTokEof
 -- The matched token and the starting position
 type Action result = Text -> SourcePos -> Lexer result
 
-newtype Lexer a = Lexer { unAlex :: Text -> AlexState -> (AlexState, a) }
+data R a = R { rState :: !AlexState, rResult :: a}
+newtype Lexer a = Lexer { unAlex :: AlexState -> R a }
 
 getState :: Lexer AlexState
-getState = Lexer $ \_ s -> (s, s)
+getState = Lexer $ \s -> R s s
 
 getMode :: Lexer Mode
 getMode = fmap alex_mode getState
 
 setMode :: Mode -> Lexer (Maybe LTok)
-setMode mode = Lexer $ \_ s -> (s{alex_mode=mode},Nothing)
+setMode mode = Lexer $ \s -> R s{alex_mode=mode} Nothing
 
 enterString :: Action (Maybe LTok)
 enterString t posn = setMode (QuoteMode posn (Text.length t - 2) False)
@@ -73,7 +74,9 @@ testAndEndString s posn = do
   QuoteMode start startlen isComment <- getMode
   if startlen /= endlen
     then do let c = Text.head s
-            setSourcePos (move posn c)
+            file <- getFile
+            let p = move posn c
+            setInput (p, Text.drop (sourcePosIndex p) file)
             return Nothing
     else do _ <- setMode NormalMode
             text <- getFile
@@ -125,10 +128,9 @@ startPos n = SourcePos n 0 1 1
 
 alexGetByte :: AlexInput -> Maybe (Word8,AlexInput)
 alexGetByte (p,text) =
-  do guard (sourcePosIndex p < Text.length text)
-     let c  = Text.index text (sourcePosIndex p)
-         p' = move p c
-     return (byteForChar c, (p',text))
+  do (c,text') <- Text.uncons text
+     let p' = move p c
+     return (byteForChar c, (p',text'))
 
 move :: SourcePos -> Char -> SourcePos
 move (SourcePos name index line column) c =
@@ -149,8 +151,10 @@ byteForChar c
                     -- any of the non-ascii bytes
 
 data AlexState = AlexState
-      { alex_pos :: !SourcePos  -- ^ position at current input location
-      , alex_mode :: Mode       -- ^ the lexer mode
+      { alex_pos  :: !SourcePos  -- ^ position at current input location
+      , alex_inp  :: !Text
+      , alex_mode :: !Mode       -- ^ the lexer mode
+      , alex_file :: !Text       -- ^ the whole file
       }
 
 data Mode
@@ -163,44 +167,51 @@ data Mode
 
 -- Compile with -funbox-strict-fields for best results!
 
-runAlex :: String -> Text -> Lexer a -> a
-runAlex name input (Lexer f) = snd (f input s)
+runAlex :: String -> Text -> Lexer LTok -> [LTok]
+runAlex name input (Lexer f) = go s0
   where
-  s = AlexState
+  s0 = AlexState
         { alex_pos = startPos name
+        , alex_inp = input
         , alex_mode = NormalMode
+        , alex_file = input
         }
+  go s = case f s of
+           R s' x | isEOF x -> [x]
+                  | otherwise -> x : go s'
 
 getInput :: Lexer AlexInput
 getInput
- = Lexer $ \inp s@AlexState{alex_pos=pos} -> (s, (pos,inp))
+ = Lexer $ \s@AlexState{alex_pos=pos,alex_inp=inp} -> R s (pos,inp)
 
 getFile :: Lexer Text
-getFile = Lexer $ \inp s -> (s, inp)
+getFile = Lexer $ \s -> R s (alex_file s)
 
 eofError :: SourcePos -> LToken -> Lexer LTok
 eofError posn t =
   do text <- getFile
+     setInput (posn, Text.empty)
+     _ <- setMode NormalMode
      return LTok
        { ltokLexeme = t
        , ltokPos   = posn
        , ltokText  = Text.drop (sourcePosIndex posn) text
        }
 
-setSourcePos :: SourcePos -> Lexer ()
-setSourcePos posn = Lexer $ \_ s -> (s{alex_pos=posn}, ())
+setInput :: AlexInput -> Lexer ()
+setInput (posn,text) = Lexer $ \s -> R s{alex_pos=posn,alex_inp=text} ()
 
 instance Functor Lexer where
   fmap = liftM
 
 instance Applicative Lexer where
-  pure a = Lexer $ \_ s -> (s,a)
+  pure a = Lexer $ \s -> R s a
   (<*>) = ap
 
 instance Monad Lexer where
   return = pure
-  m >>= k  = Lexer $ \t s ->
-              case unAlex m t s of
-                (s',a) -> unAlex (k a) t s'
+  m >>= k  = Lexer $ \s ->
+              case unAlex m s of
+                R s' a -> unAlex (k a) s'
 
 

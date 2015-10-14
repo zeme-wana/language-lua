@@ -1,6 +1,7 @@
 {
 
 {-# OPTIONS_GHC -w #-}
+{-# LANGUAGE BangPatterns #-}
 
 module Language.Lua.Annotated.Lexer
   ( llex
@@ -152,25 +153,20 @@ monadScan' = do
                     QuoteMode start _ False -> eofError start LTokUntermString
                     _ -> return ltokEOF
     AlexError (pos',_) ->
-      do setSourcePos (move pos (Text.head text))
+      do setInput (move pos (Text.head text), Text.tail text)
          return LTok { ltokLexeme = LTokUnexpected
                      , ltokPos = pos
                      , ltokText = Text.take 1 text}
-    AlexSkip  (pos',_) len ->
-      do setSourcePos pos'
+    AlexSkip inp' len ->
+      do setInput inp'
          monadScan'
-    AlexToken (pos',_) len action ->
-      do setSourcePos pos'
-         let str = Text.take len (Text.drop (sourcePosIndex pos) text)
+    AlexToken (pos',text') len action ->
+      do setInput (pos', text')
+         let str = Text.take len text
          maybe monadScan' return =<< action str pos
 
 scanner :: String -> Text -> [LTok]
-scanner name str = runAlex name str loop
-  where loop = do
-          t <- monadScan'
-          case t of
-             _ | isEOF t -> return [t]
-             t -> fmap (t:) loop
+scanner name str = runAlex name str monadScan'
 
 -- | Lua lexer with default @=<string>@ name.
 llex :: Text {- ^ chunk -} -> [LTok]

@@ -411,5 +411,5 @@ instance Arbitrary FunArg where
   shrink = const []
 
 instance Arbitrary Name where
-  arbitrary = Name . Text.pack <$> listOf1 (elements ['a'..'z'])
+  arbitrary = return (Name "a")
   shrink = const []
