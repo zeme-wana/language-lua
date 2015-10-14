@@ -17,19 +17,19 @@ import           Language.Lua.Token
 
 -- | Lua token with position information.
 data LTok = LTok
-  { ltokToken :: LToken
+  { ltokLexeme :: LToken
   , ltokPos   :: SourcePos
   , ltokText  :: Text
   } deriving (Show,Eq)
 
 ltokEOF :: LTok
 ltokEOF = LTok { ltokText   = ""
-               , ltokToken  = LTokEof
+               , ltokLexeme = LTokEof
                , ltokPos    = SourcePos "" (-1) (-1) (-1)
                }
 
 isEOF :: LTok -> Bool
-isEOF x = ltokToken x == LTokEof
+isEOF x = ltokLexeme x == LTokEof
 
 
 -- The matched token and the starting position
@@ -62,7 +62,7 @@ endComment s posn =
      text <- getFile
      let str = Text.take (sourcePosIndex posn - sourcePosIndex start + Text.length s)
              $ Text.drop (sourcePosIndex start) text
-     return (Just LTok { ltokToken = LTokComment
+     return (Just LTok { ltokLexeme = LTokComment
                        , ltokPos   = start
                        , ltokText  = str
                        })
@@ -81,11 +81,11 @@ testAndEndString s posn = do
                     $ Text.drop (sourcePosIndex start) text
                 t | isComment = LTokComment
                   | otherwise = LTokSLit
-            return $ Just LTok { ltokPos = posn, ltokToken = t, ltokText = str }
+            return $ Just LTok { ltokPos = posn, ltokLexeme = t, ltokText = str }
 
 
 tok :: LToken -> Action (Maybe LTok)
-tok t s posn = return (Just LTok { ltokToken = t
+tok t s posn = return (Just LTok { ltokLexeme = t
                                  , ltokPos   = posn
                                  , ltokText  = s })
 
@@ -97,7 +97,7 @@ dropSpecialComment text
 -- Newline is preserved in order to ensure that line numbers stay correct
 
 dropWhiteSpace :: [LTok] -> [LTok]
-dropWhiteSpace = filter (not . isWhite . ltokToken)
+dropWhiteSpace = filter (not . isWhite . ltokLexeme)
   where
   isWhite x = x == LTokWhiteSpace || x == LTokComment
 
@@ -182,7 +182,7 @@ eofError :: SourcePos -> LToken -> Lexer LTok
 eofError posn t =
   do text <- getFile
      return LTok
-       { ltokToken = t
+       { ltokLexeme = t
        , ltokPos   = posn
        , ltokText  = Text.drop (sourcePosIndex posn) text
        }

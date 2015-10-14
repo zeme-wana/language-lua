@@ -153,7 +153,7 @@ monadScan' = do
                     _ -> return ltokEOF
     AlexError (pos',_) ->
       do setSourcePos (move pos (Text.head text))
-         return LTok { ltokToken = LTokUnexpected
+         return LTok { ltokLexeme = LTokUnexpected
                      , ltokPos = pos
                      , ltokText = Text.take 1 text}
     AlexSkip  (pos',_) len ->
