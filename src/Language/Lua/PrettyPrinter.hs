@@ -15,7 +15,6 @@ import           Prelude                 hiding (EQ, GT, LT, (<$>))
 import           Prelude                 hiding (EQ, GT, LT)
 #endif
 
-import           Data.Text (Text)
 import qualified Data.Text as Text
 
 import           Text.PrettyPrint.Leijen hiding ((<$>))

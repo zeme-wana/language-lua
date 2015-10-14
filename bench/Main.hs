@@ -2,6 +2,8 @@ module Main where
 
 import           Criterion.Main
 import           Data.Maybe          (catMaybes)
+import           Data.Text           (Text)
+import qualified Data.Text.IO        as Text
 import           System.Directory    (getDirectoryContents)
 import           System.FilePath
 
@@ -14,9 +16,9 @@ main = defaultMain
         nf (catMaybes . map (either (const Nothing) Just) . map (P.parseText P.chunk)) files
   ]
 
-loadFiles :: FilePath -> IO [String]
+loadFiles :: FilePath -> IO [Text]
 loadFiles root = do
   let isLuaFile file = takeExtension file == ".lua"
       onlyLuaFiles = map (root </>) . filter isLuaFile
   luaFiles <- fmap onlyLuaFiles (getDirectoryContents root)
-  mapM readFile luaFiles
+  mapM Text.readFile luaFiles

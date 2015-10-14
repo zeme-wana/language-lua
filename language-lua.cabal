@@ -90,6 +90,7 @@ Benchmark bench
                      criterion,
                      directory,
                      filepath,
+                     text,
                      language-lua
 
   default-language:  Haskell2010
