@@ -106,7 +106,9 @@ dropSpecialComment text
 dropWhiteSpace :: [LTok] -> [LTok]
 dropWhiteSpace = filter (not . isWhite . ltokLexeme)
   where
-  isWhite x = x == LTokWhiteSpace || x == LTokComment
+  isWhite LTokWhiteSpace = True
+  isWhite LTokComment    = True
+  isWhite _              = False
 
 
 
@@ -135,7 +137,8 @@ alexGetByte :: AlexInput -> Maybe (Word8,AlexInput)
 alexGetByte (AlexInput p text) =
   do (c,text') <- Text.uncons text
      let p' = move p c
-     return (byteForChar c, AlexInput p' text')
+         x = byteForChar c
+     x `seq` p' `seq` return (x, AlexInput p' text')
 
 move :: SourcePos -> Char -> SourcePos
 move (SourcePos name index line column) c =
@@ -179,13 +182,13 @@ data Mode
 -- Compile with -funbox-strict-fields for best results!
 
 runAlex :: String -> Text -> Lexer LTok -> [LTok]
-runAlex name input (Lexer f) = go s0
+runAlex name input f = go s0
   where
   s0 = AlexState
         { alex_inp = AlexInput (startPos name) input
         , alex_mode = NormalMode
         }
-  go s = case f s of
+  go s = case unAlex f s of
            (s',x) | isEOF x -> [x]
                   | otherwise -> x : go s'
 
