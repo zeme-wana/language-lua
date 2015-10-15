@@ -9,6 +9,7 @@ import           Data.Data       (Data, Typeable)
 import           Data.Text       (Text)
 import           GHC.Generics    (Generic)
 import           Prelude         hiding (EQ, GT, LT)
+import           Language.Lua.LexerUtils
 
 data Name a = Name a Text deriving (Show, Eq, Functor, Data, Typeable, Generic)
 
@@ -283,6 +284,10 @@ instance Annotated FunArg where
 instance Annotated Name where
     ann (Name a _) = a
     amap f (Name a x1) = Name (f a) x1
+
+instance Annotated Lexeme where
+    ann = ltokPos
+    amap f l = l { ltokPos = f (ltokPos l) }
 
 instance NFData a => NFData (Name a)
 instance NFData a => NFData (Stat a)

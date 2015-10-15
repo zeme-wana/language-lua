@@ -8,7 +8,7 @@ module Language.Lua.Annotated.Lexer
   , llexNamed
   , llexNamedWithWhiteSpace
   , llexFile
-  , LLexeme(..)
+  , Lexeme(..)
   , ltokEOF
   , SourcePos(..)
   , dropWhiteSpace
@@ -142,7 +142,7 @@ modeCode mode =
     CommentMode{} -> state_comment
     QuoteMode{}   -> state_string
 
-scanner' :: AlexInput -> Mode -> [LLexeme]
+scanner' :: AlexInput -> Mode -> [Lexeme SourcePos]
 scanner' inp mode =
   case alexScanUser mode inp (modeCode mode) of
     AlexEOF                   -> lexerEOF mode
@@ -153,11 +153,11 @@ scanner' inp mode =
          (mode', Nothing) ->     scanner' inp' mode'
          (mode', Just t ) -> t : scanner' inp' mode'
 
-scanner :: String -> Text -> [LLexeme]
+scanner :: String -> Text -> [Lexeme SourcePos]
 scanner name str = scanner' (AlexInput (startPos name) str) NormalMode
 
 -- | Lua lexer with default @=<string>@ name.
-llex :: Text {- ^ chunk -} -> [LLexeme]
+llex :: Text {- ^ chunk -} -> [Lexeme SourcePos]
 llex = llexNamed "=<string>"
 
 
@@ -165,7 +165,7 @@ llex = llexNamed "=<string>"
 llexNamed ::
   String {- ^ name -} ->
   Text   {- ^ chunk -} ->
-  [LLexeme]
+  [Lexeme SourcePos]
 llexNamed name chunk = dropWhiteSpace (llexNamedWithWhiteSpace name chunk)
 
 
@@ -173,12 +173,12 @@ llexNamed name chunk = dropWhiteSpace (llexNamedWithWhiteSpace name chunk)
 llexNamedWithWhiteSpace ::
   String {- ^ name -} ->
   Text   {- ^ chunk -} ->
-  [LLexeme]
+  [Lexeme SourcePos]
 llexNamedWithWhiteSpace name chunk = scanner name (dropSpecialComment chunk)
 
 
 -- | Run Lua lexer on a file.
-llexFile :: FilePath -> IO [LLexeme]
+llexFile :: FilePath -> IO [Lexeme SourcePos]
 llexFile fp = fmap (llexNamed fp) (Text.readFile fp)
 
 }

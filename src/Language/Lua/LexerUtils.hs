@@ -15,27 +15,30 @@ import           Control.Applicative (Applicative(..))
 import           Language.Lua.Token
 
 -- | Lua token with position information.
-data LLexeme = LLexeme
+data Lexeme a = Lexeme
   { ltokToken :: LToken
-  , ltokPos   :: SourcePos
+  , ltokPos   :: a
   , ltokText  :: Text
   } deriving (Show,Eq)
 
-ltokEOF :: LLexeme
-ltokEOF = LLexeme
+instance Functor Lexeme where
+  fmap f l = l { ltokPos = f (ltokPos l) }
+
+ltokEOF :: Lexeme SourcePos
+ltokEOF = Lexeme
   { ltokText  = Text.empty
   , ltokToken = LTokEof
   , ltokPos   = SourcePos "" (-1) (-1) (-1)
   }
 
-lexerEOF :: Mode -> [LLexeme]
+lexerEOF :: Mode -> [Lexeme SourcePos]
 lexerEOF mode =
   case mode of
     QuoteMode (AlexInput start rest) _ True ->
-      [ LLexeme{ltokToken=LTokUntermComment, ltokPos=start, ltokText=rest}
+      [ Lexeme{ltokToken=LTokUntermComment, ltokPos=start, ltokText=rest}
       , ltokEOF ]
     QuoteMode (AlexInput start rest) _ False ->
-      [ LLexeme{ltokToken=LTokUntermString, ltokPos=start, ltokText=rest}
+      [ Lexeme{ltokToken=LTokUntermString, ltokPos=start, ltokText=rest}
       ,ltokEOF ]
     _ -> [ltokEOF]
 
@@ -45,7 +48,7 @@ type Action =
   Int                   {- ^ lexeme length                -} ->
   AlexInput             {- ^ current input                -} ->
   Mode                  {- ^ lexer mode                   -} ->
-  (Mode, Maybe LLexeme) {- ^ updated mode, emitted lexeme -}
+  (Mode, Maybe (Lexeme SourcePos)) {- ^ updated mode, emitted lexeme -}
 
 -- | Start lexing a long-quoted string literal
 enterString :: Action
@@ -65,8 +68,8 @@ longToken ::
   SourcePos {- ^ position of ending lexeme -} ->
   Int       {- ^ length of ending lexeme   -} ->
   LToken    {- ^ token for lexeme          -} ->
-  LLexeme
-longToken (AlexInput start text) posn len t = LLexeme
+  Lexeme SourcePos
+longToken (AlexInput start text) posn len t = Lexeme
   { ltokToken = t
   , ltokPos   = start
   , ltokText  = str
@@ -105,7 +108,7 @@ endMode len (AlexInput posn _) mode = (NormalMode, Just lexeme)
 tok :: LToken -> Action
 tok lexeme len (AlexInput posn s) mode = (mode, Just t)
   where
-  t = LLexeme
+  t = Lexeme
         { ltokToken = lexeme
         , ltokPos   = posn
         , ltokText  = Text.take len s
@@ -120,7 +123,7 @@ dropSpecialComment text
 
 -- | This function drops whitespace and comments from a list of lexemes
 -- in order to make it suitable for parsing.
-dropWhiteSpace :: [LLexeme] -> [LLexeme]
+dropWhiteSpace :: [Lexeme a] -> [Lexeme a]
 dropWhiteSpace = filter (not . isWhite . ltokToken)
   where
   isWhite LTokWhiteSpace = True

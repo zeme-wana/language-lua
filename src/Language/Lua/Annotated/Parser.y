@@ -17,74 +17,74 @@ import           Data.Text (Text)
 import qualified Data.Text.IO as Text
 
 import           Language.Lua.Token           (LToken(..))
-import           Language.Lua.Annotated.Lexer (SourcePos(..), LLexeme(..), llexNamed)
+import           Language.Lua.Annotated.Lexer (SourcePos(..), Lexeme(..), llexNamed)
 import           Language.Lua.Annotated.Syntax
 
 }
 
-%tokentype    { LLexeme }
+%tokentype    { Lexeme SourcePos }
 %token
-'+'           { LLexeme { ltokToken = LTokPlus      } }
-'-'           { LLexeme { ltokToken = LTokMinus     } }
-'*'           { LLexeme { ltokToken = LTokStar      } }
-'/'           { LLexeme { ltokToken = LTokSlash     } }
-'//'          { LLexeme { ltokToken = LTokDSlash    } }
-'%'           { LLexeme { ltokToken = LTokPercent   } }
-'^'           { LLexeme { ltokToken = LTokExp       } }
-'#'           { LLexeme { ltokToken = LTokSh        } }
-'=='          { LLexeme { ltokToken = LTokEqual     } }
-'~='          { LLexeme { ltokToken = LTokNotequal  } }
-'<='          { LLexeme { ltokToken = LTokLEq       } }
-'>='          { LLexeme { ltokToken = LTokGEq       } }
-'<'           { LLexeme { ltokToken = LTokLT        } }
-'>'           { LLexeme { ltokToken = LTokGT        } }
-'&'           { LLexeme { ltokToken = LTokAmpersand } }
-'~'           { LLexeme { ltokToken = LTokTilde     } }
-'|'           { LLexeme { ltokToken = LTokPipe      } }
-'>>'          { LLexeme { ltokToken = LTokDGT       } }
-'<<'          { LLexeme { ltokToken = LTokDLT       } }
-'='           { LLexeme { ltokToken = LTokAssign    } }
-'('           { LLexeme { ltokToken = LTokLParen    } }
-')'           { LLexeme { ltokToken = LTokRParen    } }
-'{'           { LLexeme { ltokToken = LTokLBrace    } }
-'}'           { LLexeme { ltokToken = LTokRBrace    } }
-'['           { LLexeme { ltokToken = LTokLBracket  } }
-']'           { LLexeme { ltokToken = LTokRBracket  } }
-'::'          { LLexeme { ltokToken = LTokDColon    } }
-';'           { LLexeme { ltokToken = LTokSemic     } }
-':'           { LLexeme { ltokToken = LTokColon     } }
-','           { LLexeme { ltokToken = LTokComma     } }
-'.'           { LLexeme { ltokToken = LTokDot       } }
-'..'          { LLexeme { ltokToken = LTokDDot      } }
-'...'         { LLexeme { ltokToken = LTokEllipsis  } }
-'and'         { LLexeme { ltokToken = LTokAnd       } }
-'break'       { LLexeme { ltokToken = LTokBreak     } }
-'do'          { LLexeme { ltokToken = LTokDo        } }
-'else'        { LLexeme { ltokToken = LTokElse      } }
-'elseif'      { LLexeme { ltokToken = LTokElseIf    } }
-'end'         { LLexeme { ltokToken = LTokEnd       } }
-'false'       { LLexeme { ltokToken = LTokFalse     } }
-'for'         { LLexeme { ltokToken = LTokFor       } }
-'function'    { LLexeme { ltokToken = LTokFunction  } }
-'goto'        { LLexeme { ltokToken = LTokGoto      } }
-'if'          { LLexeme { ltokToken = LTokIf        } }
-'in'          { LLexeme { ltokToken = LTokIn        } }
-'local'       { LLexeme { ltokToken = LTokLocal     } }
-'nil'         { LLexeme { ltokToken = LTokNil       } }
-'not'         { LLexeme { ltokToken = LTokNot       } }
-'or'          { LLexeme { ltokToken = LTokOr        } }
-'repeat'      { LLexeme { ltokToken = LTokRepeat    } }
-'return'      { LLexeme { ltokToken = LTokReturn    } }
-'then'        { LLexeme { ltokToken = LTokThen      } }
-'true'        { LLexeme { ltokToken = LTokTrue      } }
-'until'       { LLexeme { ltokToken = LTokUntil     } }
-'while'       { LLexeme { ltokToken = LTokWhile     } }
-numeral       { LLexeme { ltokToken = LTokNum       } }
-literalString { LLexeme { ltokToken = LTokSLit      } }
-ident         { LLexeme { ltokToken = LTokIdent     } }
+'+'           { Lexeme { ltokToken = LTokPlus      } }
+'-'           { Lexeme { ltokToken = LTokMinus     } }
+'*'           { Lexeme { ltokToken = LTokStar      } }
+'/'           { Lexeme { ltokToken = LTokSlash     } }
+'//'          { Lexeme { ltokToken = LTokDSlash    } }
+'%'           { Lexeme { ltokToken = LTokPercent   } }
+'^'           { Lexeme { ltokToken = LTokExp       } }
+'#'           { Lexeme { ltokToken = LTokSh        } }
+'=='          { Lexeme { ltokToken = LTokEqual     } }
+'~='          { Lexeme { ltokToken = LTokNotequal  } }
+'<='          { Lexeme { ltokToken = LTokLEq       } }
+'>='          { Lexeme { ltokToken = LTokGEq       } }
+'<'           { Lexeme { ltokToken = LTokLT        } }
+'>'           { Lexeme { ltokToken = LTokGT        } }
+'&'           { Lexeme { ltokToken = LTokAmpersand } }
+'~'           { Lexeme { ltokToken = LTokTilde     } }
+'|'           { Lexeme { ltokToken = LTokPipe      } }
+'>>'          { Lexeme { ltokToken = LTokDGT       } }
+'<<'          { Lexeme { ltokToken = LTokDLT       } }
+'='           { Lexeme { ltokToken = LTokAssign    } }
+'('           { Lexeme { ltokToken = LTokLParen    } }
+')'           { Lexeme { ltokToken = LTokRParen    } }
+'{'           { Lexeme { ltokToken = LTokLBrace    } }
+'}'           { Lexeme { ltokToken = LTokRBrace    } }
+'['           { Lexeme { ltokToken = LTokLBracket  } }
+']'           { Lexeme { ltokToken = LTokRBracket  } }
+'::'          { Lexeme { ltokToken = LTokDColon    } }
+';'           { Lexeme { ltokToken = LTokSemic     } }
+':'           { Lexeme { ltokToken = LTokColon     } }
+','           { Lexeme { ltokToken = LTokComma     } }
+'.'           { Lexeme { ltokToken = LTokDot       } }
+'..'          { Lexeme { ltokToken = LTokDDot      } }
+'...'         { Lexeme { ltokToken = LTokEllipsis  } }
+'and'         { Lexeme { ltokToken = LTokAnd       } }
+'break'       { Lexeme { ltokToken = LTokBreak     } }
+'do'          { Lexeme { ltokToken = LTokDo        } }
+'else'        { Lexeme { ltokToken = LTokElse      } }
+'elseif'      { Lexeme { ltokToken = LTokElseIf    } }
+'end'         { Lexeme { ltokToken = LTokEnd       } }
+'false'       { Lexeme { ltokToken = LTokFalse     } }
+'for'         { Lexeme { ltokToken = LTokFor       } }
+'function'    { Lexeme { ltokToken = LTokFunction  } }
+'goto'        { Lexeme { ltokToken = LTokGoto      } }
+'if'          { Lexeme { ltokToken = LTokIf        } }
+'in'          { Lexeme { ltokToken = LTokIn        } }
+'local'       { Lexeme { ltokToken = LTokLocal     } }
+'nil'         { Lexeme { ltokToken = LTokNil       } }
+'not'         { Lexeme { ltokToken = LTokNot       } }
+'or'          { Lexeme { ltokToken = LTokOr        } }
+'repeat'      { Lexeme { ltokToken = LTokRepeat    } }
+'return'      { Lexeme { ltokToken = LTokReturn    } }
+'then'        { Lexeme { ltokToken = LTokThen      } }
+'true'        { Lexeme { ltokToken = LTokTrue      } }
+'until'       { Lexeme { ltokToken = LTokUntil     } }
+'while'       { Lexeme { ltokToken = LTokWhile     } }
+numeral       { Lexeme { ltokToken = LTokNum       } }
+literalString { Lexeme { ltokToken = LTokSLit      } }
+ident         { Lexeme { ltokToken = LTokIdent     } }
 
 %monad { Parser }
-%lexer { (>>=) lexerP } { LLexeme { ltokToken = LTokEof } }
+%lexer { (>>=) lexerP } { Lexeme { ltokToken = LTokEof } }
 %error { errorP }
 
 -- local a=b(nil)() is one statement
@@ -136,23 +136,23 @@ retstat ::                           { [Exp SourcePos] }
   : 'return' sepBy(exp,',') opt(';') { $2              }
 
 stat ::                                                   { Stat SourcePos                }
-  : ';'                                                   { sl $1 EmptyStat               }
+  : ';'                                                   { sp $1 EmptyStat               }
   | varlist '=' explist                                   { sp (head $1) Assign $1 $3     }
   | functioncall %prec STAT                               { sp $1 FunCall $1              }
-  | '::' name '::'                                        { sl $1 Label $2                }
-  | 'break'                                               { sl $1 Break                   }
-  | 'goto' name                                           { sl $1 Goto $2                 }
-  | 'local' namelist opt(assign)                          { sl $1 LocalAssign $2 $3       }
+  | '::' name '::'                                        { sp $1 Label $2                }
+  | 'break'                                               { sp $1 Break                   }
+  | 'goto' name                                           { sp $1 Goto $2                 }
+  | 'local' namelist opt(assign)                          { sp $1 LocalAssign $2 $3       }
 
   ------- block structures -------------------------------
-  | 'function' funcname funcbody 'end'                    { sl $1 FunAssign $2 $3         }
-  | 'local' 'function' name funcbody 'end'                { sl $1 LocalFunAssign $3 $4    }
-  | 'repeat' block 'until' exp                            { sl $1 Repeat $2 $4            }
-  | 'do' block 'end'                                      { sl $1 Do $2                   }
-  | 'while' exp 'do' block 'end'                          { sl $1 While $2 $4             }
-  | 'if' exp 'then' block many(elseif) opt(else) 'end'    { sl $1 If (($2,$4):$5) $6      }
-  | 'for' name '=' exp ',' exp opt(step) 'do' block 'end' { sl $1 ForRange $2 $4 $6 $7 $9 }
-  | 'for' namelist 'in' explist 'do' block 'end'          { sl $1 ForIn $2 $4 $6          }
+  | 'function' funcname funcbody 'end'                    { sp $1 FunAssign $2 $3         }
+  | 'local' 'function' name funcbody 'end'                { sp $1 LocalFunAssign $3 $4    }
+  | 'repeat' block 'until' exp                            { sp $1 Repeat $2 $4            }
+  | 'do' block 'end'                                      { sp $1 Do $2                   }
+  | 'while' exp 'do' block 'end'                          { sp $1 While $2 $4             }
+  | 'if' exp 'then' block many(elseif) opt(else) 'end'    { sp $1 If (($2,$4):$5) $6      }
+  | 'for' name '=' exp ',' exp opt(step) 'do' block 'end' { sp $1 ForRange $2 $4 $6 $7 $9 }
+  | 'for' namelist 'in' explist 'do' block 'end'          { sp $1 ForIn $2 $4 $6          }
 
   ------- error cases for block structures ---------------
   | 'function' funcname funcbody error                    {% noEndP $1 }
@@ -176,7 +176,7 @@ namelist : sepBy1(name, ',') { $1 }
 prefixexp ::                  { PrefixExp SourcePos }
   : var                       { sp $1 PEVar $1      }
   | functioncall %prec PREFIX { sp $1 PEFunCall $1  }
-  | '(' exp ')'               { sl $1 Paren $2      }
+  | '(' exp ')'               { sp $1 Paren $2      }
 
 functioncall ::               { FunCall SourcePos         }
   : prefixexp            args { sp $1 NormalFunCall $1 $2 }
@@ -194,54 +194,54 @@ var ::                    { Var SourcePos          }
   | prefixexp '.' name    { sp $1 SelectName $1 $3 }
 
 exp ::                     { Exp SourcePos               }
-  : 'nil'                  { sl $1 Nil                   }
-  | 'false'                { sl $1 Bool False            }
-  | 'true'                 { sl $1 Bool True             }
-  | numeral                { sl $1 Number (ltokText $1) }
-  | literalString          { sl $1 String (ltokText $1) }
-  | '...'                  { sl $1 Vararg                }
+  : 'nil'                  { sp $1 Nil                   }
+  | 'false'                { sp $1 Bool False            }
+  | 'true'                 { sp $1 Bool True             }
+  | numeral                { sp $1 Number (ltokText $1) }
+  | literalString          { sp $1 String (ltokText $1) }
+  | '...'                  { sp $1 Vararg                }
   | functiondef            { sp $1 EFunDef $1            }
   | prefixexp %prec EXP    { sp $1 PrefixExp $1          }
   | tableconstructor       { sp $1 TableConst $1         }
 
-  | exp '+' exp   { sp $1 Binop (sl $2 Add   ) $1 $3 }
-  | exp '-' exp   { sp $1 Binop (sl $2 Sub   ) $1 $3 }
-  | exp '*' exp   { sp $1 Binop (sl $2 Mul   ) $1 $3 }
-  | exp '/' exp   { sp $1 Binop (sl $2 Div   ) $1 $3 }
-  | exp '//' exp  { sp $1 Binop (sl $2 IDiv  ) $1 $3 }
-  | exp '^' exp   { sp $1 Binop (sl $2 Exp   ) $1 $3 }
-  | exp '%' exp   { sp $1 Binop (sl $2 Mod   ) $1 $3 }
-  | exp '..' exp  { sp $1 Binop (sl $2 Concat) $1 $3 }
-  | exp '<'  exp  { sp $1 Binop (sl $2 LT    ) $1 $3 }
-  | exp '<=' exp  { sp $1 Binop (sl $2 LTE   ) $1 $3 }
-  | exp '>'  exp  { sp $1 Binop (sl $2 GT    ) $1 $3 }
-  | exp '>=' exp  { sp $1 Binop (sl $2 GTE   ) $1 $3 }
-  | exp '==' exp  { sp $1 Binop (sl $2 EQ    ) $1 $3 }
-  | exp '~=' exp  { sp $1 Binop (sl $2 NEQ   ) $1 $3 }
-  | exp 'and' exp { sp $1 Binop (sl $2 And   ) $1 $3 }
-  | exp 'or'  exp { sp $1 Binop (sl $2 Or    ) $1 $3 }
-  | exp '&' exp   { sp $1 Binop (sl $2 BAnd  ) $1 $3 }
-  | exp '|' exp   { sp $1 Binop (sl $2 BOr   ) $1 $3 }
-  | exp '~' exp   { sp $1 Binop (sl $2 BXor  ) $1 $3 }
-  | exp '<<' exp  { sp $1 Binop (sl $2 ShiftL) $1 $3 }
-  | exp '>>' exp  { sp $1 Binop (sl $2 ShiftR) $1 $3 }
+  | exp '+' exp   { sp $1 Binop (sp $2 Add   ) $1 $3 }
+  | exp '-' exp   { sp $1 Binop (sp $2 Sub   ) $1 $3 }
+  | exp '*' exp   { sp $1 Binop (sp $2 Mul   ) $1 $3 }
+  | exp '/' exp   { sp $1 Binop (sp $2 Div   ) $1 $3 }
+  | exp '//' exp  { sp $1 Binop (sp $2 IDiv  ) $1 $3 }
+  | exp '^' exp   { sp $1 Binop (sp $2 Exp   ) $1 $3 }
+  | exp '%' exp   { sp $1 Binop (sp $2 Mod   ) $1 $3 }
+  | exp '..' exp  { sp $1 Binop (sp $2 Concat) $1 $3 }
+  | exp '<'  exp  { sp $1 Binop (sp $2 LT    ) $1 $3 }
+  | exp '<=' exp  { sp $1 Binop (sp $2 LTE   ) $1 $3 }
+  | exp '>'  exp  { sp $1 Binop (sp $2 GT    ) $1 $3 }
+  | exp '>=' exp  { sp $1 Binop (sp $2 GTE   ) $1 $3 }
+  | exp '==' exp  { sp $1 Binop (sp $2 EQ    ) $1 $3 }
+  | exp '~=' exp  { sp $1 Binop (sp $2 NEQ   ) $1 $3 }
+  | exp 'and' exp { sp $1 Binop (sp $2 And   ) $1 $3 }
+  | exp 'or'  exp { sp $1 Binop (sp $2 Or    ) $1 $3 }
+  | exp '&' exp   { sp $1 Binop (sp $2 BAnd  ) $1 $3 }
+  | exp '|' exp   { sp $1 Binop (sp $2 BOr   ) $1 $3 }
+  | exp '~' exp   { sp $1 Binop (sp $2 BXor  ) $1 $3 }
+  | exp '<<' exp  { sp $1 Binop (sp $2 ShiftL) $1 $3 }
+  | exp '>>' exp  { sp $1 Binop (sp $2 ShiftR) $1 $3 }
 
-  | '-' exp %prec NEG        { sl $1 Unop (sl $1 Neg)        $2 }
-  | '~' exp %prec COMPLEMENT { sl $1 Unop (sl $1 Complement) $2 }
-  | 'not' exp                { sl $1 Unop (sl $1 Not)        $2 }
-  | '#'  exp                 { sl $1 Unop (sl $1 Len)        $2 }
+  | '-' exp %prec NEG        { sp $1 Unop (sp $1 Neg)        $2 }
+  | '~' exp %prec COMPLEMENT { sp $1 Unop (sp $1 Complement) $2 }
+  | 'not' exp                { sp $1 Unop (sp $1 Not)        $2 }
+  | '#'  exp                 { sp $1 Unop (sp $1 Len)        $2 }
 
 args ::                    { FunArg SourcePos               }
-  : '(' sepBy(exp,',') ')' { sl $1 Args $2                  }
+  : '(' sepBy(exp,',') ')' { sp $1 Args $2                  }
   | tableconstructor       { sp $1 TableArg $1              }
-  | literalString          { sl $1 StringArg (ltokText $1) }
+  | literalString          { sp $1 StringArg (ltokText $1) }
 
 functiondef ::          { FunDef SourcePos }
-  : 'function' funcbody 'end' { sl $1 FunDef $2  }
+  : 'function' funcbody 'end' { sp $1 FunDef $2  }
   | 'function' funcbody error {% noEndP $1 }
 
 funcbody ::                     { FunBody SourcePos                  }
-  : '(' parlist ')' block { sl $1 FunBody (fst $2) (snd $2) $4 }
+  : '(' parlist ')' block { sp $1 FunBody (fst $2) (snd $2) $4 }
 
 parlist ::              { ([Name SourcePos],Maybe SourcePos) }
   : parnames1 ',' '...' { (reverse $1,Just (ltokPos $3) )     }
@@ -254,8 +254,8 @@ parnames1 ::           { [Name SourcePos] }
   | parnames1 ',' name { $3 : $1          }
 
 tableconstructor ::                 { Table SourcePos          }
-  : '{'                         '}' { sl $1 Table []           }
-  | '{' fieldlist opt(fieldsep) '}' { sl $1 Table (reverse $2) }
+  : '{'                         '}' { sp $1 Table []           }
+  | '{' fieldlist opt(fieldsep) '}' { sp $1 Table (reverse $2) }
 
 fieldlist ::                  { [TableField SourcePos] }
   : fieldlist fieldsep field  { $3 : $1                }
@@ -266,19 +266,22 @@ fieldsep :: { () }
   | ';'     { () }
 
 field ::                { TableField SourcePos   }
-  : '[' exp ']' '=' exp { sl $1 ExpField $2 $5   }
+  : '[' exp ']' '=' exp { sp $1 ExpField $2 $5   }
   | name        '=' exp { sp $1 NamedField $1 $3 }
   |                 exp { sp $1 Field $1         }
 
 name ::   { Name SourcePos            }
-  : ident { sl $1 Name (ltokText $1) }
+  : ident { sp $1 Name (ltokText $1) }
 
 {
 
 data Parser a = Parser
-  { runP :: forall r. (SourcePos -> String -> r) -> (a -> [LLexeme] -> r) -> [LLexeme] -> r }
+  { runP :: forall r. (SourcePos -> String -> r) ->
+                      (a -> [Lexeme SourcePos] -> r) ->
+                      [Lexeme SourcePos] ->
+                      r }
 
-runParser :: Parser a -> [LLexeme] -> Either (String,SourcePos) a
+runParser :: Parser a -> [Lexeme SourcePos] -> Either (String,SourcePos) a
 runParser p = runP p (\pos e -> Left (e,pos)) (\x _ -> Right x)
 
 instance Functor     Parser where fmap    = liftM
@@ -289,19 +292,16 @@ instance Monad       Parser where return  = pure
                                             runP m e $ \a ->
                                             runP (f a) e k
 
-errorP :: LLexeme -> Parser a
-errorP LLexeme { ltokPos = pos, ltokToken = t } =
+errorP :: Lexeme SourcePos -> Parser a
+errorP Lexeme { ltokPos = pos, ltokToken = t } =
   Parser $ \e _ _ -> e pos ("unexpected " ++ show t)
 
-noEndP :: LLexeme -> Parser a
-noEndP LLexeme { ltokPos = pos, ltokToken = t } =
+noEndP :: Lexeme SourcePos -> Parser a
+noEndP Lexeme { ltokPos = pos, ltokToken = t } =
   Parser $ \e _ _ -> e pos ("unterminated " ++ show t)
 
-lexerP :: Parser LLexeme
+lexerP :: Parser (Lexeme SourcePos)
 lexerP = Parser $ \ _ k (l:ls) -> k l ls
-
-sl :: LLexeme -> (SourcePos -> a) -> a
-sl x f = f (ltokPos x)
 
 sp :: Annotated p => p SourcePos -> (SourcePos -> a) -> a
 sp x f = f (ann x)
