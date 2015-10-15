@@ -24,13 +24,6 @@ data LexToken a = LexToken
 instance Functor LexToken where
   fmap f l = l { ltokPos = f (ltokPos l) }
 
-ltokEOF :: LexToken SourcePos
-ltokEOF = LexToken
-  { ltokLexeme = Text.empty
-  , ltokToken  = TokEof
-  , ltokPos    = SourcePos "" (-1) (-1) (-1)
-  }
-
 abortMode :: Maybe SourcePos -> Mode -> [LexToken SourcePos]
 abortMode mb mode =
   case mode of

@@ -196,7 +196,7 @@ numberTests = testGroup "Number tests"
 regressions :: TestTree
 regressions = testGroup "Regression tests"
     [ testCase "Lexing comment with text \"EOF\" in it" $
-        assertEqual "Lexing is wrong" [L.ltokEOF] (L.llex "--EOF")
+        assertEqual "Lexing is wrong" [] (L.llex "--EOF")
     , testCase "Binary/unary operator parsing/printing" $ do
         pp "2^3^2 == 2^(3^2)"
         pp "2^3*4 == (2^3)*4"
@@ -216,7 +216,7 @@ regressions = testGroup "Regression tests"
     , testCase "Lexing Lua string: '\\\\\"'" $ do
         let get t = (L.ltokToken t, L.ltokLexeme t)
         assertEqual "String lexed wrong"
-          [(T.TokSLit, "'\\\\\"'"), (T.TokEof,"")]
+          [(T.TokSLit, "'\\\\\"'")]
           (map get (L.llex "'\\\\\"'"))
     , testCase "Lexing long literal `[====[ ... ]====]`" $
         show (L.llex "[=[]]=]") `deepseq` return ()

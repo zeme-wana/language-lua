@@ -62,7 +62,6 @@ data Token
   | TokNum                -- ^number constant
   | TokSLit               -- ^string constant
   | TokIdent              -- ^identifier
-  | TokEof                -- ^end of file
 
   | TokWhiteSpace         -- ^white space
   | TokComment            -- ^comment
@@ -136,7 +135,6 @@ instance Show Token where
     show TokNum           = "number"
     show TokSLit          = "string"
     show TokIdent         = "identifier"
-    show TokEof           = "EOF"
 
     show TokUntermString  = "unterminated_string"
     show TokUntermComment = "unterminated_comment"

@@ -9,7 +9,6 @@ module Language.Lua.Annotated.Lexer
   , llexNamedWithWhiteSpace
   , llexFile
   , LexToken(..)
-  , ltokEOF
   , SourcePos(..)
   , dropWhiteSpace
   ) where
@@ -146,16 +145,16 @@ tokens :-
 modeCode :: Mode -> Int
 modeCode mode =
   case mode of
-    NormalMode    -> 0
-    CommentMode{} -> state_comment
-    QuoteMode{}   -> state_lstring
+    NormalMode        -> 0
+    CommentMode    {} -> state_comment
+    QuoteMode      {} -> state_lstring
     SingleQuoteMode{} -> state_sstring
     DoubleQuoteMode{} -> state_dstring
 
 scanner' :: AlexInput -> Mode -> [LexToken SourcePos]
 scanner' inp mode =
   case alexScanUser mode inp (modeCode mode) of
-    AlexEOF                   -> abortMode Nothing mode ++ [ltokEOF]
+    AlexEOF                   -> abortMode Nothing mode
     AlexError _               -> error "language-lua lexer internal error"
     AlexSkip inp' _           -> scanner' inp' mode
     AlexToken inp' len action ->

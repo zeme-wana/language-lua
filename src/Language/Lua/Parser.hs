@@ -15,7 +15,7 @@ import           Language.Lua.Annotated.Lexer (SourcePos)
 import           Language.Lua.Annotated.Simplify
 import           Language.Lua.Syntax
 
-parseFile :: FilePath -> IO (Either (String,SourcePos) Block)
+parseFile :: FilePath -> IO (Either (SourcePos,String) Block)
 parseFile = liftM (liftM sBlock) . A.parseFile
 
 stat :: A.Parser Stat

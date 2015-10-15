@@ -1,6 +1,4 @@
 {
-{-# LANGUAGE RankNTypes #-}
-
 module Language.Lua.Annotated.Parser
   ( parseText
   , parseNamedText
@@ -83,8 +81,7 @@ numeral       { LexToken { ltokToken = TokNum       } }
 literalString { LexToken { ltokToken = TokSLit      } }
 ident         { LexToken { ltokToken = TokIdent     } }
 
-%monad { Parser }
-%lexer { (>>=) lexerP } { LexToken { ltokToken = TokEof } }
+%monad { Either (SourcePos, String) }
 %error { errorP }
 
 -- local a=b(nil)() is one statement
@@ -109,9 +106,9 @@ ident         { LexToken { ltokToken = TokIdent     } }
 %nonassoc 'not' '#' NEG COMPLEMENT
 %right '^'
 
-%name chunk block
-%name exp exp
-%name stat stat
+%name chunk_ block
+%name exp_ exp
+%name stat_ stat
 
 %%
 
@@ -275,33 +272,30 @@ name ::   { Name SourcePos             }
 
 {
 
-data Parser a = Parser
-  { runP :: forall r. (SourcePos -> String -> r) ->
-                      (a -> [LexToken SourcePos] -> r) ->
-                      [LexToken SourcePos] ->
-                      r }
+newtype Parser a = Parser { runParser :: [LexToken SourcePos] -> Either (SourcePos,String) a }
 
-runParser :: Parser a -> [LexToken SourcePos] -> Either (String,SourcePos) a
-runParser p = runP p (\pos e -> Left (e,pos)) (\x _ -> Right x)
+chunk :: Parser (Block SourcePos)
+chunk = Parser chunk_
 
-instance Functor     Parser where fmap    = liftM
-instance Applicative Parser where pure x  = Parser $ \_ k -> k x
-                                  (<*>)   = ap
-instance Monad       Parser where return  = pure
-                                  m >>= f = Parser $ \e k ->
-                                            runP m e $ \a ->
-                                            runP (f a) e k
+stat :: Parser (Stat SourcePos)
+stat = Parser stat_
 
-errorP :: LexToken SourcePos -> Parser a
-errorP LexToken { ltokPos = pos, ltokToken = t } =
-  Parser $ \e _ _ -> e pos ("unexpected " ++ show t)
+exp :: Parser (Exp SourcePos)
+exp = Parser exp_
 
-noEndP :: LexToken SourcePos -> Parser a
+instance Functor Parser where
+  fmap f (Parser p) = Parser (fmap (fmap f) p)
+
+errorP :: [LexToken SourcePos] -> Either (SourcePos,String) a
+errorP ts =
+  case ts of
+    [] -> Left (SourcePos "" (-1)(-1)(-1), "unexpected end of file")
+    LexToken { ltokPos = pos, ltokToken = t }:_ ->
+      Left (pos, "unexpected " ++ show t)
+
+noEndP :: LexToken SourcePos -> Either (SourcePos,String) a
 noEndP LexToken { ltokPos = pos, ltokToken = t } =
-  Parser $ \e _ _ -> e pos ("unterminated " ++ show t)
-
-lexerP :: Parser (LexToken SourcePos)
-lexerP = Parser $ \ _ k (l:ls) -> k l ls
+  Left (pos, "unterminated " ++ show t)
 
 sp :: Annotated p => p SourcePos -> (SourcePos -> a) -> a
 sp x f = f (ann x)
@@ -322,23 +316,19 @@ parseNamedText ::
   Parser a ->
   String {- ^ name -} ->
   Text {- ^ chunk -} ->
-  Either (String, SourcePos) a
-parseNamedText p n xs =
-  case runParser p (llexNamed n xs) of
-    Left (msg,pos) ->
-      Left ("parser error: " ++ show msg, pos)
-    Right chunk -> Right chunk
+  Either (SourcePos, String) a
+parseNamedText p n xs = runParser p (llexNamed n xs)
 
 -- | Runs Lua lexer before parsing. Use @parseText stat@ to parse
 -- statements, and @parseText exp@ to parse expressions.
 parseText ::
   Parser a ->
   Text {- ^ chunk -} ->
-  Either (String, SourcePos) a
+  Either (SourcePos, String) a
 parseText p = parseNamedText p "=<string>"
 
 -- | Parse a Lua file. You can use @parseText chunk@ to parse a file from a string.
-parseFile :: FilePath -> IO (Either (String, SourcePos) (Block SourcePos))
+parseFile :: FilePath -> IO (Either (SourcePos, String) (Block SourcePos))
 parseFile fp = fmap (parseNamedText chunk fp) (Text.readFile fp)
 
 }
