@@ -16,75 +16,75 @@ import           Prelude hiding (LT,GT,EQ,exp)
 import           Data.Text (Text)
 import qualified Data.Text.IO as Text
 
-import           Language.Lua.Token           (LToken(..))
-import           Language.Lua.Annotated.Lexer (SourcePos(..), Lexeme(..), llexNamed)
+import           Language.Lua.Token           (Token(..))
+import           Language.Lua.Annotated.Lexer (SourcePos(..), LexToken(..), llexNamed)
 import           Language.Lua.Annotated.Syntax
 
 }
 
-%tokentype    { Lexeme SourcePos }
+%tokentype    { LexToken SourcePos }
 %token
-'+'           { Lexeme { ltokToken = LTokPlus      } }
-'-'           { Lexeme { ltokToken = LTokMinus     } }
-'*'           { Lexeme { ltokToken = LTokStar      } }
-'/'           { Lexeme { ltokToken = LTokSlash     } }
-'//'          { Lexeme { ltokToken = LTokDSlash    } }
-'%'           { Lexeme { ltokToken = LTokPercent   } }
-'^'           { Lexeme { ltokToken = LTokExp       } }
-'#'           { Lexeme { ltokToken = LTokSh        } }
-'=='          { Lexeme { ltokToken = LTokEqual     } }
-'~='          { Lexeme { ltokToken = LTokNotequal  } }
-'<='          { Lexeme { ltokToken = LTokLEq       } }
-'>='          { Lexeme { ltokToken = LTokGEq       } }
-'<'           { Lexeme { ltokToken = LTokLT        } }
-'>'           { Lexeme { ltokToken = LTokGT        } }
-'&'           { Lexeme { ltokToken = LTokAmpersand } }
-'~'           { Lexeme { ltokToken = LTokTilde     } }
-'|'           { Lexeme { ltokToken = LTokPipe      } }
-'>>'          { Lexeme { ltokToken = LTokDGT       } }
-'<<'          { Lexeme { ltokToken = LTokDLT       } }
-'='           { Lexeme { ltokToken = LTokAssign    } }
-'('           { Lexeme { ltokToken = LTokLParen    } }
-')'           { Lexeme { ltokToken = LTokRParen    } }
-'{'           { Lexeme { ltokToken = LTokLBrace    } }
-'}'           { Lexeme { ltokToken = LTokRBrace    } }
-'['           { Lexeme { ltokToken = LTokLBracket  } }
-']'           { Lexeme { ltokToken = LTokRBracket  } }
-'::'          { Lexeme { ltokToken = LTokDColon    } }
-';'           { Lexeme { ltokToken = LTokSemic     } }
-':'           { Lexeme { ltokToken = LTokColon     } }
-','           { Lexeme { ltokToken = LTokComma     } }
-'.'           { Lexeme { ltokToken = LTokDot       } }
-'..'          { Lexeme { ltokToken = LTokDDot      } }
-'...'         { Lexeme { ltokToken = LTokEllipsis  } }
-'and'         { Lexeme { ltokToken = LTokAnd       } }
-'break'       { Lexeme { ltokToken = LTokBreak     } }
-'do'          { Lexeme { ltokToken = LTokDo        } }
-'else'        { Lexeme { ltokToken = LTokElse      } }
-'elseif'      { Lexeme { ltokToken = LTokElseIf    } }
-'end'         { Lexeme { ltokToken = LTokEnd       } }
-'false'       { Lexeme { ltokToken = LTokFalse     } }
-'for'         { Lexeme { ltokToken = LTokFor       } }
-'function'    { Lexeme { ltokToken = LTokFunction  } }
-'goto'        { Lexeme { ltokToken = LTokGoto      } }
-'if'          { Lexeme { ltokToken = LTokIf        } }
-'in'          { Lexeme { ltokToken = LTokIn        } }
-'local'       { Lexeme { ltokToken = LTokLocal     } }
-'nil'         { Lexeme { ltokToken = LTokNil       } }
-'not'         { Lexeme { ltokToken = LTokNot       } }
-'or'          { Lexeme { ltokToken = LTokOr        } }
-'repeat'      { Lexeme { ltokToken = LTokRepeat    } }
-'return'      { Lexeme { ltokToken = LTokReturn    } }
-'then'        { Lexeme { ltokToken = LTokThen      } }
-'true'        { Lexeme { ltokToken = LTokTrue      } }
-'until'       { Lexeme { ltokToken = LTokUntil     } }
-'while'       { Lexeme { ltokToken = LTokWhile     } }
-numeral       { Lexeme { ltokToken = LTokNum       } }
-literalString { Lexeme { ltokToken = LTokSLit      } }
-ident         { Lexeme { ltokToken = LTokIdent     } }
+'+'           { LexToken { ltokToken = TokPlus      } }
+'-'           { LexToken { ltokToken = TokMinus     } }
+'*'           { LexToken { ltokToken = TokStar      } }
+'/'           { LexToken { ltokToken = TokSlash     } }
+'//'          { LexToken { ltokToken = TokDSlash    } }
+'%'           { LexToken { ltokToken = TokPercent   } }
+'^'           { LexToken { ltokToken = TokExp       } }
+'#'           { LexToken { ltokToken = TokSh        } }
+'=='          { LexToken { ltokToken = TokEqual     } }
+'~='          { LexToken { ltokToken = TokNotequal  } }
+'<='          { LexToken { ltokToken = TokLEq       } }
+'>='          { LexToken { ltokToken = TokGEq       } }
+'<'           { LexToken { ltokToken = TokLT        } }
+'>'           { LexToken { ltokToken = TokGT        } }
+'&'           { LexToken { ltokToken = TokAmpersand } }
+'~'           { LexToken { ltokToken = TokTilde     } }
+'|'           { LexToken { ltokToken = TokPipe      } }
+'>>'          { LexToken { ltokToken = TokDGT       } }
+'<<'          { LexToken { ltokToken = TokDLT       } }
+'='           { LexToken { ltokToken = TokAssign    } }
+'('           { LexToken { ltokToken = TokLParen    } }
+')'           { LexToken { ltokToken = TokRParen    } }
+'{'           { LexToken { ltokToken = TokLBrace    } }
+'}'           { LexToken { ltokToken = TokRBrace    } }
+'['           { LexToken { ltokToken = TokLBracket  } }
+']'           { LexToken { ltokToken = TokRBracket  } }
+'::'          { LexToken { ltokToken = TokDColon    } }
+';'           { LexToken { ltokToken = TokSemic     } }
+':'           { LexToken { ltokToken = TokColon     } }
+','           { LexToken { ltokToken = TokComma     } }
+'.'           { LexToken { ltokToken = TokDot       } }
+'..'          { LexToken { ltokToken = TokDDot      } }
+'...'         { LexToken { ltokToken = TokEllipsis  } }
+'and'         { LexToken { ltokToken = TokAnd       } }
+'break'       { LexToken { ltokToken = TokBreak     } }
+'do'          { LexToken { ltokToken = TokDo        } }
+'else'        { LexToken { ltokToken = TokElse      } }
+'elseif'      { LexToken { ltokToken = TokElseIf    } }
+'end'         { LexToken { ltokToken = TokEnd       } }
+'false'       { LexToken { ltokToken = TokFalse     } }
+'for'         { LexToken { ltokToken = TokFor       } }
+'function'    { LexToken { ltokToken = TokFunction  } }
+'goto'        { LexToken { ltokToken = TokGoto      } }
+'if'          { LexToken { ltokToken = TokIf        } }
+'in'          { LexToken { ltokToken = TokIn        } }
+'local'       { LexToken { ltokToken = TokLocal     } }
+'nil'         { LexToken { ltokToken = TokNil       } }
+'not'         { LexToken { ltokToken = TokNot       } }
+'or'          { LexToken { ltokToken = TokOr        } }
+'repeat'      { LexToken { ltokToken = TokRepeat    } }
+'return'      { LexToken { ltokToken = TokReturn    } }
+'then'        { LexToken { ltokToken = TokThen      } }
+'true'        { LexToken { ltokToken = TokTrue      } }
+'until'       { LexToken { ltokToken = TokUntil     } }
+'while'       { LexToken { ltokToken = TokWhile     } }
+numeral       { LexToken { ltokToken = TokNum       } }
+literalString { LexToken { ltokToken = TokSLit      } }
+ident         { LexToken { ltokToken = TokIdent     } }
 
 %monad { Parser }
-%lexer { (>>=) lexerP } { Lexeme { ltokToken = LTokEof } }
+%lexer { (>>=) lexerP } { LexToken { ltokToken = TokEof } }
 %error { errorP }
 
 -- local a=b(nil)() is one statement
@@ -193,16 +193,16 @@ var ::                    { Var SourcePos          }
   | prefixexp '[' exp ']' { sp $1 Select $1 $3     }
   | prefixexp '.' name    { sp $1 SelectName $1 $3 }
 
-exp ::                     { Exp SourcePos               }
-  : 'nil'                  { sp $1 Nil                   }
-  | 'false'                { sp $1 Bool False            }
-  | 'true'                 { sp $1 Bool True             }
-  | numeral                { sp $1 Number (ltokText $1) }
-  | literalString          { sp $1 String (ltokText $1) }
-  | '...'                  { sp $1 Vararg                }
-  | functiondef            { sp $1 EFunDef $1            }
-  | prefixexp %prec EXP    { sp $1 PrefixExp $1          }
-  | tableconstructor       { sp $1 TableConst $1         }
+exp ::                     { Exp SourcePos                }
+  : 'nil'                  { sp $1 Nil                    }
+  | 'false'                { sp $1 Bool False             }
+  | 'true'                 { sp $1 Bool True              }
+  | numeral                { sp $1 Number (ltokLexeme $1) }
+  | literalString          { sp $1 String (ltokLexeme $1) }
+  | '...'                  { sp $1 Vararg                 }
+  | functiondef            { sp $1 EFunDef $1             }
+  | prefixexp %prec EXP    { sp $1 PrefixExp $1           }
+  | tableconstructor       { sp $1 TableConst $1          }
 
   | exp '+' exp   { sp $1 Binop (sp $2 Add   ) $1 $3 }
   | exp '-' exp   { sp $1 Binop (sp $2 Sub   ) $1 $3 }
@@ -231,10 +231,10 @@ exp ::                     { Exp SourcePos               }
   | 'not' exp                { sp $1 Unop (sp $1 Not)        $2 }
   | '#'  exp                 { sp $1 Unop (sp $1 Len)        $2 }
 
-args ::                    { FunArg SourcePos               }
-  : '(' sepBy(exp,',') ')' { sp $1 Args $2                  }
-  | tableconstructor       { sp $1 TableArg $1              }
-  | literalString          { sp $1 StringArg (ltokText $1) }
+args ::                    { FunArg SourcePos                }
+  : '(' sepBy(exp,',') ')' { sp $1 Args $2                   }
+  | tableconstructor       { sp $1 TableArg $1               }
+  | literalString          { sp $1 StringArg (ltokLexeme $1) }
 
 functiondef ::          { FunDef SourcePos }
   : 'function' funcbody 'end' { sp $1 FunDef $2  }
@@ -270,18 +270,18 @@ field ::                { TableField SourcePos   }
   | name        '=' exp { sp $1 NamedField $1 $3 }
   |                 exp { sp $1 Field $1         }
 
-name ::   { Name SourcePos            }
-  : ident { sp $1 Name (ltokText $1) }
+name ::   { Name SourcePos             }
+  : ident { sp $1 Name (ltokLexeme $1) }
 
 {
 
 data Parser a = Parser
   { runP :: forall r. (SourcePos -> String -> r) ->
-                      (a -> [Lexeme SourcePos] -> r) ->
-                      [Lexeme SourcePos] ->
+                      (a -> [LexToken SourcePos] -> r) ->
+                      [LexToken SourcePos] ->
                       r }
 
-runParser :: Parser a -> [Lexeme SourcePos] -> Either (String,SourcePos) a
+runParser :: Parser a -> [LexToken SourcePos] -> Either (String,SourcePos) a
 runParser p = runP p (\pos e -> Left (e,pos)) (\x _ -> Right x)
 
 instance Functor     Parser where fmap    = liftM
@@ -292,15 +292,15 @@ instance Monad       Parser where return  = pure
                                             runP m e $ \a ->
                                             runP (f a) e k
 
-errorP :: Lexeme SourcePos -> Parser a
-errorP Lexeme { ltokPos = pos, ltokToken = t } =
+errorP :: LexToken SourcePos -> Parser a
+errorP LexToken { ltokPos = pos, ltokToken = t } =
   Parser $ \e _ _ -> e pos ("unexpected " ++ show t)
 
-noEndP :: Lexeme SourcePos -> Parser a
-noEndP Lexeme { ltokPos = pos, ltokToken = t } =
+noEndP :: LexToken SourcePos -> Parser a
+noEndP LexToken { ltokPos = pos, ltokToken = t } =
   Parser $ \e _ _ -> e pos ("unterminated " ++ show t)
 
-lexerP :: Parser (Lexeme SourcePos)
+lexerP :: Parser (LexToken SourcePos)
 lexerP = Parser $ \ _ k (l:ls) -> k l ls
 
 sp :: Annotated p => p SourcePos -> (SourcePos -> a) -> a

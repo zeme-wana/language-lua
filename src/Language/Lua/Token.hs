@@ -1,143 +1,143 @@
 module Language.Lua.Token where
 
 -- | Lua tokens
-data LToken
-  = LTokPlus               -- ^+
-  | LTokMinus              -- ^\-
-  | LTokStar               -- ^\*
-  | LTokSlash              -- ^/
-  | LTokPercent            -- ^%
-  | LTokExp                -- ^^
-  | LTokSh                 -- ^#
-  | LTokEqual              -- ^==
-  | LTokNotequal           -- ^~=
-  | LTokLEq                -- ^<=
-  | LTokGEq                -- ^\>=
-  | LTokLT                 -- ^<
-  | LTokGT                 -- ^\>
-  | LTokAssign             -- ^=
-  | LTokLParen             -- ^(
-  | LTokRParen             -- ^)
-  | LTokLBrace             -- ^{
-  | LTokRBrace             -- ^}
-  | LTokLBracket           -- ^\[
-  | LTokRBracket           -- ^]
-  | LTokDColon             -- ^::
-  | LTokSemic              -- ^;
-  | LTokColon              -- ^:
-  | LTokComma              -- ^,
-  | LTokDot                -- ^.
-  | LTokDDot               -- ^..
-  | LTokEllipsis           -- ^...
-  | LTokDLT                -- ^<<
-  | LTokDGT                -- ^\>\>
-  | LTokAmpersand          -- ^&
-  | LTokPipe               -- ^|
-  | LTokDSlash             -- ^//
-  | LTokTilde              -- ^~
+data Token
+  = TokPlus               -- ^+
+  | TokMinus              -- ^\-
+  | TokStar               -- ^\*
+  | TokSlash              -- ^/
+  | TokPercent            -- ^%
+  | TokExp                -- ^^
+  | TokSh                 -- ^#
+  | TokEqual              -- ^==
+  | TokNotequal           -- ^~=
+  | TokLEq                -- ^<=
+  | TokGEq                -- ^\>=
+  | TokLT                 -- ^<
+  | TokGT                 -- ^\>
+  | TokAssign             -- ^=
+  | TokLParen             -- ^(
+  | TokRParen             -- ^)
+  | TokLBrace             -- ^{
+  | TokRBrace             -- ^}
+  | TokLBracket           -- ^\[
+  | TokRBracket           -- ^]
+  | TokDColon             -- ^::
+  | TokSemic              -- ^;
+  | TokColon              -- ^:
+  | TokComma              -- ^,
+  | TokDot                -- ^.
+  | TokDDot               -- ^..
+  | TokEllipsis           -- ^...
+  | TokDLT                -- ^<<
+  | TokDGT                -- ^\>\>
+  | TokAmpersand          -- ^&
+  | TokPipe               -- ^|
+  | TokDSlash             -- ^//
+  | TokTilde              -- ^~
 
-  | LTokAnd                -- ^and
-  | LTokBreak              -- ^break
-  | LTokDo                 -- ^do
-  | LTokElse               -- ^else
-  | LTokElseIf             -- ^elseif
-  | LTokEnd                -- ^end
-  | LTokFalse              -- ^false
-  | LTokFor                -- ^for
-  | LTokFunction           -- ^function
-  | LTokGoto               -- ^goto
-  | LTokIf                 -- ^if
-  | LTokIn                 -- ^in
-  | LTokLocal              -- ^local
-  | LTokNil                -- ^nil
-  | LTokNot                -- ^not
-  | LTokOr                 -- ^or
-  | LTokRepeat             -- ^repeat
-  | LTokReturn             -- ^return
-  | LTokThen               -- ^then
-  | LTokTrue               -- ^true
-  | LTokUntil              -- ^until
-  | LTokWhile              -- ^while
+  | TokAnd                -- ^and
+  | TokBreak              -- ^break
+  | TokDo                 -- ^do
+  | TokElse               -- ^else
+  | TokElseIf             -- ^elseif
+  | TokEnd                -- ^end
+  | TokFalse              -- ^false
+  | TokFor                -- ^for
+  | TokFunction           -- ^function
+  | TokGoto               -- ^goto
+  | TokIf                 -- ^if
+  | TokIn                 -- ^in
+  | TokLocal              -- ^local
+  | TokNil                -- ^nil
+  | TokNot                -- ^not
+  | TokOr                 -- ^or
+  | TokRepeat             -- ^repeat
+  | TokReturn             -- ^return
+  | TokThen               -- ^then
+  | TokTrue               -- ^true
+  | TokUntil              -- ^until
+  | TokWhile              -- ^while
 
-  | LTokNum                -- ^number constant
-  | LTokSLit               -- ^string constant
-  | LTokIdent              -- ^identifier
-  | LTokEof                -- ^end of file
+  | TokNum                -- ^number constant
+  | TokSLit               -- ^string constant
+  | TokIdent              -- ^identifier
+  | TokEof                -- ^end of file
 
-  | LTokWhiteSpace         -- ^white space
-  | LTokComment            -- ^comment
+  | TokWhiteSpace         -- ^white space
+  | TokComment            -- ^comment
 
-  | LTokUntermString       -- ^ unterminated string
-  | LTokUntermComment      -- ^ unterminated comment
-  | LTokUnexpected         -- ^ unexpected character
+  | TokUntermString       -- ^ unterminated string
+  | TokUntermComment      -- ^ unterminated comment
+  | TokUnexpected         -- ^ unexpected character
     deriving Eq
 
-instance Show LToken where
-    show LTokPlus          = "`+`"
-    show LTokMinus         = "`-`"
-    show LTokStar          = "`*`"
-    show LTokSlash         = "`/`"
-    show LTokPercent       = "`%`"
-    show LTokExp           = "`^`"
-    show LTokSh            = "`#`"
-    show LTokEqual         = "`==`"
-    show LTokNotequal      = "`~=`"
-    show LTokLEq           = "`<=`"
-    show LTokGEq           = "`>=`"
-    show LTokLT            = "`<`"
-    show LTokGT            = "`>`"
-    show LTokAssign        = "`=`"
-    show LTokLParen        = "`(`"
-    show LTokRParen        = "`)`"
-    show LTokLBrace        = "`{`"
-    show LTokRBrace        = "`}`"
-    show LTokLBracket      = "`[`"
-    show LTokRBracket      = "`]`"
-    show LTokDColon        = "`::`"
-    show LTokSemic         = "`;`"
-    show LTokColon         = "`:`"
-    show LTokComma         = "`,`"
-    show LTokDot           = "`.`"
-    show LTokDDot          = "`..`"
-    show LTokEllipsis      = "`...`"
-    show LTokDLT           = "`<<`"
-    show LTokDGT           = "`>>`"
-    show LTokAmpersand     = "`&`"
-    show LTokPipe          = "`|`"
-    show LTokDSlash        = "`//`"
-    show LTokTilde         = "`~`"
+instance Show Token where
+    show TokPlus          = "`+`"
+    show TokMinus         = "`-`"
+    show TokStar          = "`*`"
+    show TokSlash         = "`/`"
+    show TokPercent       = "`%`"
+    show TokExp           = "`^`"
+    show TokSh            = "`#`"
+    show TokEqual         = "`==`"
+    show TokNotequal      = "`~=`"
+    show TokLEq           = "`<=`"
+    show TokGEq           = "`>=`"
+    show TokLT            = "`<`"
+    show TokGT            = "`>`"
+    show TokAssign        = "`=`"
+    show TokLParen        = "`(`"
+    show TokRParen        = "`)`"
+    show TokLBrace        = "`{`"
+    show TokRBrace        = "`}`"
+    show TokLBracket      = "`[`"
+    show TokRBracket      = "`]`"
+    show TokDColon        = "`::`"
+    show TokSemic         = "`;`"
+    show TokColon         = "`:`"
+    show TokComma         = "`,`"
+    show TokDot           = "`.`"
+    show TokDDot          = "`..`"
+    show TokEllipsis      = "`...`"
+    show TokDLT           = "`<<`"
+    show TokDGT           = "`>>`"
+    show TokAmpersand     = "`&`"
+    show TokPipe          = "`|`"
+    show TokDSlash        = "`//`"
+    show TokTilde         = "`~`"
 
-    show LTokAnd           = "`and`"
-    show LTokBreak         = "`break`"
-    show LTokDo            = "`do`"
-    show LTokElse          = "`else`"
-    show LTokElseIf        = "`elseif`"
-    show LTokEnd           = "`end`"
-    show LTokFalse         = "`false`"
-    show LTokFor           = "`for`"
-    show LTokFunction      = "`function`"
-    show LTokGoto          = "`goto`"
-    show LTokIf            = "`if`"
-    show LTokIn            = "`in`"
-    show LTokLocal         = "`local`"
-    show LTokNil           = "`nil`"
-    show LTokNot           = "`not`"
-    show LTokOr            = "`or`"
-    show LTokRepeat        = "`repeat`"
-    show LTokReturn        = "`return`"
-    show LTokThen          = "`then`"
-    show LTokTrue          = "`true`"
-    show LTokUntil         = "`until`"
-    show LTokWhile         = "`while`"
+    show TokAnd           = "`and`"
+    show TokBreak         = "`break`"
+    show TokDo            = "`do`"
+    show TokElse          = "`else`"
+    show TokElseIf        = "`elseif`"
+    show TokEnd           = "`end`"
+    show TokFalse         = "`false`"
+    show TokFor           = "`for`"
+    show TokFunction      = "`function`"
+    show TokGoto          = "`goto`"
+    show TokIf            = "`if`"
+    show TokIn            = "`in`"
+    show TokLocal         = "`local`"
+    show TokNil           = "`nil`"
+    show TokNot           = "`not`"
+    show TokOr            = "`or`"
+    show TokRepeat        = "`repeat`"
+    show TokReturn        = "`return`"
+    show TokThen          = "`then`"
+    show TokTrue          = "`true`"
+    show TokUntil         = "`until`"
+    show TokWhile         = "`while`"
 
-    show LTokWhiteSpace    = "white_space"
-    show LTokComment       = "comment"
+    show TokWhiteSpace    = "white_space"
+    show TokComment       = "comment"
 
-    show LTokNum           = "number"
-    show LTokSLit          = "string"
-    show LTokIdent         = "identifier"
-    show LTokEof           = "EOF"
+    show TokNum           = "number"
+    show TokSLit          = "string"
+    show TokIdent         = "identifier"
+    show TokEof           = "EOF"
 
-    show LTokUntermString  = "unterminated_string"
-    show LTokUntermComment = "unterminated_comment"
-    show LTokUnexpected    = "unexpected_character"
+    show TokUntermString  = "unterminated_string"
+    show TokUntermComment = "unterminated_comment"
+    show TokUnexpected    = "unexpected_character"

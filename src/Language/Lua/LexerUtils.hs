@@ -15,33 +15,33 @@ import           Control.Applicative (Applicative(..))
 import           Language.Lua.Token
 
 -- | Lua token with position information.
-data Lexeme a = Lexeme
-  { ltokToken :: LToken
+data LexToken a = LexToken
+  { ltokToken :: Token
   , ltokPos   :: a
-  , ltokText  :: Text
+  , ltokLexeme :: Text
   } deriving (Show,Eq)
 
-instance Functor Lexeme where
+instance Functor LexToken where
   fmap f l = l { ltokPos = f (ltokPos l) }
 
-ltokEOF :: Lexeme SourcePos
-ltokEOF = Lexeme
-  { ltokText  = Text.empty
-  , ltokToken = LTokEof
-  , ltokPos   = SourcePos "" (-1) (-1) (-1)
+ltokEOF :: LexToken SourcePos
+ltokEOF = LexToken
+  { ltokLexeme = Text.empty
+  , ltokToken  = TokEof
+  , ltokPos    = SourcePos "" (-1) (-1) (-1)
   }
 
-abortMode :: Maybe SourcePos -> Mode -> [Lexeme SourcePos]
+abortMode :: Maybe SourcePos -> Mode -> [LexToken SourcePos]
 abortMode mb mode =
   case mode of
     QuoteMode (AlexInput start rest) _ True ->
-      [ Lexeme{ltokToken=LTokUntermComment, ltokPos=start, ltokText=keep start rest} ]
+      [ LexToken{ltokToken=TokUntermComment, ltokPos=start, ltokLexeme=keep start rest} ]
     QuoteMode (AlexInput start rest) _ False ->
-      [ Lexeme{ltokToken=LTokUntermString, ltokPos=start, ltokText=keep start rest} ]
+      [ LexToken{ltokToken=TokUntermString, ltokPos=start, ltokLexeme=keep start rest} ]
     SingleQuoteMode (AlexInput start rest) ->
-      [ Lexeme{ltokToken=LTokUntermString, ltokPos=start, ltokText=keep start rest} ]
+      [ LexToken{ltokToken=TokUntermString, ltokPos=start, ltokLexeme=keep start rest} ]
     DoubleQuoteMode (AlexInput start rest) ->
-      [ Lexeme{ltokToken=LTokUntermString, ltokPos=start, ltokText=keep start rest} ]
+      [ LexToken{ltokToken=TokUntermString, ltokPos=start, ltokLexeme=keep start rest} ]
     _ -> []
   where
   keep start str =
@@ -52,10 +52,10 @@ abortMode mb mode =
 unexpectedChar :: Action
 unexpectedChar len (AlexInput posn s) mode = (NormalMode, abortMode (Just posn) mode ++ [t])
   where
-  t = Lexeme
-        { ltokToken = LTokUnexpected
-        , ltokPos   = posn
-        , ltokText  = Text.take len s
+  t = LexToken
+        { ltokToken  = TokUnexpected
+        , ltokPos    = posn
+        , ltokLexeme = Text.take len s
         }
 
 
@@ -64,7 +64,7 @@ type Action =
   Int                        {- ^ lexeme length         -} ->
   AlexInput                  {- ^ current input         -} ->
   Mode                       {- ^ lexer mode            -} ->
-  (Mode, [Lexeme SourcePos]) {- ^ updated mode, lexemes -}
+  (Mode, [LexToken SourcePos]) {- ^ updated mode, lexemes -}
 
 -- | Start lexing a long-quoted string literal
 enterLongString :: Action
@@ -91,12 +91,12 @@ longToken ::
   AlexInput {- ^ starting position         -} ->
   SourcePos {- ^ position of ending lexeme -} ->
   Int       {- ^ length of ending lexeme   -} ->
-  LToken    {- ^ token for lexeme          -} ->
-  Lexeme SourcePos
-longToken (AlexInput start text) posn len t = Lexeme
-  { ltokToken = t
-  , ltokPos   = start
-  , ltokText  = str
+  Token     {- ^ token for lexeme          -} ->
+  LexToken SourcePos
+longToken (AlexInput start text) posn len t = LexToken
+  { ltokToken  = t
+  , ltokPos    = start
+  , ltokLexeme = str
   }
   where
   commentLength = sourcePosIndex posn - sourcePosIndex start + len
@@ -122,22 +122,22 @@ endMode len (AlexInput posn _) mode = (NormalMode, [lexeme])
   where
   lexeme =
     case mode of
-      SingleQuoteMode inp         -> longToken inp posn len LTokSLit
-      DoubleQuoteMode inp         -> longToken inp posn len LTokSLit
-      CommentMode inp             -> longToken inp posn len LTokComment
+      SingleQuoteMode inp         -> longToken inp posn len TokSLit
+      DoubleQuoteMode inp         -> longToken inp posn len TokSLit
+      CommentMode inp             -> longToken inp posn len TokComment
       QuoteMode   inp _ isComment -> longToken inp posn len
-                                   $ if isComment then LTokComment
-                                                  else LTokSLit
+                                   $ if isComment then TokComment
+                                                  else TokSLit
       NormalMode -> error "endMode: internal lexer error"
 
 -- | Simplest action emitting a lexeme for the current match
-tok :: LToken -> Action
+tok :: Token -> Action
 tok token len (AlexInput posn s) mode = (mode, [t])
   where
-  t = Lexeme
-        { ltokToken = token
-        , ltokPos   = posn
-        , ltokText  = Text.take len s
+  t = LexToken
+        { ltokToken  = token
+        , ltokPos    = posn
+        , ltokLexeme = Text.take len s
         }
 
 -- | Drop the first line of a Lua file when it starts with a '#'
@@ -149,12 +149,12 @@ dropSpecialComment text
 
 -- | This function drops whitespace and comments from a list of lexemes
 -- in order to make it suitable for parsing.
-dropWhiteSpace :: [Lexeme a] -> [Lexeme a]
+dropWhiteSpace :: [LexToken a] -> [LexToken a]
 dropWhiteSpace = filter (not . isWhite . ltokToken)
   where
-  isWhite LTokWhiteSpace = True
-  isWhite LTokComment    = True
-  isWhite _              = False
+  isWhite TokWhiteSpace = True
+  isWhite TokComment    = True
+  isWhite _             = False
 
 
 -- | The type of locations in a source file

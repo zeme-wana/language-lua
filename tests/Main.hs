@@ -214,9 +214,9 @@ regressions = testGroup "Regression tests"
         show (L.llex "'\\\"'") `deepseq` return ()
         show (L.llex "\"\\\'\"") `deepseq` return ()
     , testCase "Lexing Lua string: '\\\\\"'" $ do
-        let get t = (L.ltokToken t, L.ltokText t)
+        let get t = (L.ltokToken t, L.ltokLexeme t)
         assertEqual "String lexed wrong"
-          [(T.LTokSLit, "'\\\\\"'"), (T.LTokEof,"")]
+          [(T.TokSLit, "'\\\\\"'"), (T.TokEof,"")]
           (map get (L.llex "'\\\\\"'"))
     , testCase "Lexing long literal `[====[ ... ]====]`" $
         show (L.llex "[=[]]=]") `deepseq` return ()

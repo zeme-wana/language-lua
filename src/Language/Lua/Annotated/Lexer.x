@@ -8,7 +8,7 @@ module Language.Lua.Annotated.Lexer
   , llexNamed
   , llexNamedWithWhiteSpace
   , llexFile
-  , Lexeme(..)
+  , LexToken(..)
   , ltokEOF
   , SourcePos(..)
   , dropWhiteSpace
@@ -48,38 +48,38 @@ $longstr  = [ . \n ]                    -- valid character in a long string
 
 tokens :-
 
-    <0> $white+    { tok LTokWhiteSpace }
+    <0> $white+    { tok TokWhiteSpace }
 
     -- keywords
-    <0> "and"      { tok LTokAnd }
-    <0> "break"    { tok LTokBreak }
-    <0> "do"       { tok LTokDo }
-    <0> "else"     { tok LTokElse }
-    <0> "elseif"   { tok LTokElseIf }
-    <0> "end"      { tok LTokEnd }
-    <0> "false"    { tok LTokFalse }
-    <0> "for"      { tok LTokFor }
-    <0> "function" { tok LTokFunction }
-    <0> "goto"     { tok LTokGoto }
-    <0> "if"       { tok LTokIf }
-    <0> "in"       { tok LTokIn }
-    <0> "local"    { tok LTokLocal }
-    <0> "nil"      { tok LTokNil }
-    <0> "not"      { tok LTokNot }
-    <0> "or"       { tok LTokOr }
-    <0> "repeat"   { tok LTokRepeat }
-    <0> "return"   { tok LTokReturn }
-    <0> "then"     { tok LTokThen }
-    <0> "true"     { tok LTokTrue }
-    <0> "until"    { tok LTokUntil }
-    <0> "while"    { tok LTokWhile }
+    <0> "and"      { tok TokAnd }
+    <0> "break"    { tok TokBreak }
+    <0> "do"       { tok TokDo }
+    <0> "else"     { tok TokElse }
+    <0> "elseif"   { tok TokElseIf }
+    <0> "end"      { tok TokEnd }
+    <0> "false"    { tok TokFalse }
+    <0> "for"      { tok TokFor }
+    <0> "function" { tok TokFunction }
+    <0> "goto"     { tok TokGoto }
+    <0> "if"       { tok TokIf }
+    <0> "in"       { tok TokIn }
+    <0> "local"    { tok TokLocal }
+    <0> "nil"      { tok TokNil }
+    <0> "not"      { tok TokNot }
+    <0> "or"       { tok TokOr }
+    <0> "repeat"   { tok TokRepeat }
+    <0> "return"   { tok TokReturn }
+    <0> "then"     { tok TokThen }
+    <0> "true"     { tok TokTrue }
+    <0> "until"    { tok TokUntil }
+    <0> "while"    { tok TokWhile }
 
     -- identifiers
-    <0> $letter $identletter* { tok LTokIdent }
+    <0> $letter $identletter* { tok TokIdent }
 
     -- number literals
-    <0> @mantpart @exppart?                  { tok LTokNum }
-    <0> @hexprefix @mantparthex @expparthex? { tok LTokNum }
+    <0> @mantpart @exppart?                  { tok TokNum }
+    <0> @hexprefix @mantparthex @expparthex? { tok TokNum }
 
     <0> \'                   { enterSingleString }
     <state_sstring> @charesc ;
@@ -103,39 +103,39 @@ tokens :-
     <state_comment> .*      { endMode }
 
     -- operators
-    <0> "+"   { tok LTokPlus }
-    <0> "-"   { tok LTokMinus }
-    <0> "*"   { tok LTokStar }
-    <0> "/"   { tok LTokSlash }
-    <0> "//"  { tok LTokDSlash }
-    <0> "%"   { tok LTokPercent }
-    <0> "^"   { tok LTokExp }
-    <0> "#"   { tok LTokSh }
-    <0> "=="  { tok LTokEqual }
-    <0> "~="  { tok LTokNotequal }
-    <0> "<="  { tok LTokLEq }
-    <0> ">="  { tok LTokGEq }
-    <0> "<"   { tok LTokLT }
-    <0> ">"   { tok LTokGT }
-    <0> "="   { tok LTokAssign }
-    <0> "("   { tok LTokLParen }
-    <0> ")"   { tok LTokRParen }
-    <0> "{"   { tok LTokLBrace }
-    <0> "}"   { tok LTokRBrace }
-    <0> "["   { tok LTokLBracket }
-    <0> "]"   { tok LTokRBracket }
-    <0> "::"  { tok LTokDColon }
-    <0> ";"   { tok LTokSemic }
-    <0> ":"   { tok LTokColon }
-    <0> ","   { tok LTokComma }
-    <0> "."   { tok LTokDot }
-    <0> ".."  { tok LTokDDot }
-    <0> "..." { tok LTokEllipsis }
-    <0> "&"   { tok LTokAmpersand }
-    <0> "|"   { tok LTokPipe }
-    <0> "~"   { tok LTokTilde }
-    <0> "<<"  { tok LTokDLT }
-    <0> ">>"  { tok LTokDGT }
+    <0> "+"   { tok TokPlus }
+    <0> "-"   { tok TokMinus }
+    <0> "*"   { tok TokStar }
+    <0> "/"   { tok TokSlash }
+    <0> "//"  { tok TokDSlash }
+    <0> "%"   { tok TokPercent }
+    <0> "^"   { tok TokExp }
+    <0> "#"   { tok TokSh }
+    <0> "=="  { tok TokEqual }
+    <0> "~="  { tok TokNotequal }
+    <0> "<="  { tok TokLEq }
+    <0> ">="  { tok TokGEq }
+    <0> "<"   { tok TokLT }
+    <0> ">"   { tok TokGT }
+    <0> "="   { tok TokAssign }
+    <0> "("   { tok TokLParen }
+    <0> ")"   { tok TokRParen }
+    <0> "{"   { tok TokLBrace }
+    <0> "}"   { tok TokRBrace }
+    <0> "["   { tok TokLBracket }
+    <0> "]"   { tok TokRBracket }
+    <0> "::"  { tok TokDColon }
+    <0> ";"   { tok TokSemic }
+    <0> ":"   { tok TokColon }
+    <0> ","   { tok TokComma }
+    <0> "."   { tok TokDot }
+    <0> ".."  { tok TokDDot }
+    <0> "..." { tok TokEllipsis }
+    <0> "&"   { tok TokAmpersand }
+    <0> "|"   { tok TokPipe }
+    <0> "~"   { tok TokTilde }
+    <0> "<<"  { tok TokDLT }
+    <0> ">>"  { tok TokDGT }
 
     <0,state_sstring,state_dstring,state_lstring>
        . | \n    { unexpectedChar }
@@ -152,7 +152,7 @@ modeCode mode =
     SingleQuoteMode{} -> state_sstring
     DoubleQuoteMode{} -> state_dstring
 
-scanner' :: AlexInput -> Mode -> [Lexeme SourcePos]
+scanner' :: AlexInput -> Mode -> [LexToken SourcePos]
 scanner' inp mode =
   case alexScanUser mode inp (modeCode mode) of
     AlexEOF                   -> abortMode Nothing mode ++ [ltokEOF]
@@ -162,11 +162,11 @@ scanner' inp mode =
        case action len inp mode of
          (mode', ts) -> ts ++ scanner' inp' mode'
 
-scanner :: String -> Text -> [Lexeme SourcePos]
+scanner :: String -> Text -> [LexToken SourcePos]
 scanner name str = scanner' (AlexInput (startPos name) str) NormalMode
 
 -- | Lua lexer with default @=<string>@ name.
-llex :: Text {- ^ chunk -} -> [Lexeme SourcePos]
+llex :: Text {- ^ chunk -} -> [LexToken SourcePos]
 llex = llexNamed "=<string>"
 
 
@@ -174,7 +174,7 @@ llex = llexNamed "=<string>"
 llexNamed ::
   String {- ^ name -} ->
   Text   {- ^ chunk -} ->
-  [Lexeme SourcePos]
+  [LexToken SourcePos]
 llexNamed name chunk = dropWhiteSpace (llexNamedWithWhiteSpace name chunk)
 
 
@@ -182,12 +182,12 @@ llexNamed name chunk = dropWhiteSpace (llexNamedWithWhiteSpace name chunk)
 llexNamedWithWhiteSpace ::
   String {- ^ name -} ->
   Text   {- ^ chunk -} ->
-  [Lexeme SourcePos]
+  [LexToken SourcePos]
 llexNamedWithWhiteSpace name chunk = scanner name (dropSpecialComment chunk)
 
 
 -- | Run Lua lexer on a file.
-llexFile :: FilePath -> IO [Lexeme SourcePos]
+llexFile :: FilePath -> IO [LexToken SourcePos]
 llexFile fp = fmap (llexNamed fp) (Text.readFile fp)
 
 }
