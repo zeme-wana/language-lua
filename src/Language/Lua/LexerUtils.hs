@@ -22,68 +22,94 @@ data LLexeme = LLexeme
   } deriving (Show,Eq)
 
 ltokEOF :: LLexeme
-ltokEOF = LLexeme { ltokText   = ""
-               , ltokToken = LTokEof
-               , ltokPos    = SourcePos "" (-1) (-1) (-1)
-               }
+ltokEOF = LLexeme
+  { ltokText  = Text.empty
+  , ltokToken = LTokEof
+  , ltokPos   = SourcePos "" (-1) (-1) (-1)
+  }
 
-isEOF :: LLexeme -> Bool
-isEOF x = ltokToken x == LTokEof
-
-
--- The matched token and the starting position
-type Action = Int -> AlexInput -> Mode -> (Mode, Maybe LLexeme)
-
-enterString :: Action
-enterString len (AlexInput posn t) _ = (QuoteMode posn t len False, Nothing)
-
-enterLongComment :: Action
-enterLongComment len (AlexInput posn t) _ = (QuoteMode posn t (len - 2) True, Nothing)
-
-enterComment :: Action
-enterComment _ (AlexInput p t) _ = (CommentMode p t, Nothing)
-
-endComment :: Action
-endComment len (AlexInput posn _) mode =
+lexerEOF :: Mode -> [LLexeme]
+lexerEOF mode =
   case mode of
-    CommentMode start text -> (NormalMode, Just t)
-      where
-      commentLength = sourcePosIndex posn - sourcePosIndex start + len
-      str = Text.take commentLength text
-      t = LLexeme { ltokToken = LTokComment
-               , ltokPos   = start
-               , ltokText  = str
-               }
-    _ -> error "endComment: internal lexer error"
+    QuoteMode (AlexInput start rest) _ True ->
+      [ LLexeme{ltokToken=LTokUntermComment, ltokPos=start, ltokText=rest}
+      , ltokEOF ]
+    QuoteMode (AlexInput start rest) _ False ->
+      [ LLexeme{ltokToken=LTokUntermString, ltokPos=start, ltokText=rest}
+      ,ltokEOF ]
+    _ -> [ltokEOF]
 
+
+-- | Type of alex actions
+type Action =
+  Int                   {- ^ lexeme length                -} ->
+  AlexInput             {- ^ current input                -} ->
+  Mode                  {- ^ lexer mode                   -} ->
+  (Mode, Maybe LLexeme) {- ^ updated mode, emitted lexeme -}
+
+-- | Start lexing a long-quoted string literal
+enterString :: Action
+enterString len inp _ = (QuoteMode inp len False, Nothing)
+
+-- | Start lexing a long-quoted comment
+enterLongComment :: Action
+enterLongComment len inp _ = (QuoteMode inp (len - 2) True, Nothing)
+
+-- | Start lexing a single-line comment
+enterComment :: Action
+enterComment _ inp _ = (CommentMode inp, Nothing)
+
+-- | Construct a lexeme spanning multiple matches
+longToken ::
+  AlexInput {- ^ starting position         -} ->
+  SourcePos {- ^ position of ending lexeme -} ->
+  Int       {- ^ length of ending lexeme   -} ->
+  LToken    {- ^ token for lexeme          -} ->
+  LLexeme
+longToken (AlexInput start text) posn len t = LLexeme
+  { ltokToken = t
+  , ltokPos   = start
+  , ltokText  = str
+  }
+  where
+  commentLength = sourcePosIndex posn - sourcePosIndex start + len
+  str = Text.take commentLength text
+
+-- | The closing delimiter for long-quoted lexemes must be the same length as
+-- the opening delimiter. This predicate checks if the currently match
+-- delimiter is the right length.
 endStringPredicate ::
-  Mode ->
+  Mode      {- ^ lexer mode                    -} ->
   AlexInput {- ^ input stream before the token -} ->
   Int       {- ^ length of the token           -} ->
   AlexInput {- ^ input stream after the token  -} ->
-  Bool
-endStringPredicate (QuoteMode _ _ startlen _) _ len _ = len == startlen
-endStringPredicate _ _ _ _ = error "endStringPredicate called from wrong mode"
-
-endString :: Action
-endString len (AlexInput posn _) mode =
+  Bool      {- ^ is expected ending long-quote -}
+endStringPredicate mode _ len _ =
   case mode of
-    QuoteMode start text _ isComment -> (NormalMode, Just t)
-      where
-      stringLength = sourcePosIndex posn - sourcePosIndex start + len
-      str = Text.take stringLength text
-      lexeme | isComment = LTokComment
-             | otherwise = LTokSLit
-      t = LLexeme { ltokPos = start, ltokToken = lexeme, ltokText = str }
-    _ -> error "endString: internal lexer error"
+    QuoteMode _ startlen _ -> len == startlen
+    _                      -> False
 
+-- | Action called at the end of a lexer-sub mode.
+endMode :: Action
+endMode len (AlexInput posn _) mode = (NormalMode, Just lexeme)
+  where
+  lexeme =
+    case mode of
+      CommentMode inp             -> longToken inp posn len LTokComment
+      QuoteMode   inp _ isComment -> longToken inp posn len
+                                   $ if isComment then LTokComment
+                                                  else LTokSLit
+      NormalMode -> error "endMode: internal lexer error"
+
+-- | Simplest action emitting a lexeme for the current match
 tok :: LToken -> Action
 tok lexeme len (AlexInput posn s) mode = (mode, Just t)
   where
-  t = LLexeme { ltokToken = lexeme
-           , ltokPos   = posn
-           , ltokText  = Text.take len s
-           }
+  t = LLexeme
+        { ltokToken = lexeme
+        , ltokPos   = posn
+        , ltokText  = Text.take len s
+        }
 
 -- | Drop the first line of a Lua file when it starts with a '#'
 dropSpecialComment :: Text -> Text
@@ -92,6 +118,8 @@ dropSpecialComment text
   | otherwise = text
 -- Newline is preserved in order to ensure that line numbers stay correct
 
+-- | This function drops whitespace and comments from a list of lexemes
+-- in order to make it suitable for parsing.
 dropWhiteSpace :: [LLexeme] -> [LLexeme]
 dropWhiteSpace = filter (not . isWhite . ltokToken)
   where
@@ -100,11 +128,11 @@ dropWhiteSpace = filter (not . isWhite . ltokToken)
   isWhite _              = False
 
 
+-- | The type of locations in a source file
 data SourcePos = SourcePos
-                  { sourcePosName :: String
-                  , sourcePosIndex, sourcePosLine, sourcePosColumn
-                       :: {-# UNPACK #-}!Int
-                  }
+  { sourcePosName :: String
+  , sourcePosIndex, sourcePosLine, sourcePosColumn :: {-# UNPACK #-}!Int
+  }
   deriving (Show,Eq)
 
 instance NFData SourcePos where
@@ -117,13 +145,16 @@ startPos n = SourcePos n 0 1 1
 alexInputPrevChar :: a -> ()
 alexInputPrevChar _ = ()
 
+-- | Attempt to retrieve the next representative element for the character
+-- at the head of the input string. Returns an advanced 'AlexInput'
 alexGetByte :: AlexInput -> Maybe (Word8,AlexInput)
 alexGetByte (AlexInput p text) =
   do (c,text') <- Text.uncons text
      let p' = move p c
-         x = byteForChar c
+         x = fromIntegral (min 127 (ord c))
      x `seq` p' `seq` return (x, AlexInput p' text')
 
+-- | Update a 'SourcePos' for a particular matched character
 move :: SourcePos -> Char -> SourcePos
 move (SourcePos name index line column) c =
   case c of
@@ -131,28 +162,18 @@ move (SourcePos name index line column) c =
     '\n' -> SourcePos name (index+1) (line + 1) 1
     _    -> SourcePos name (index+1) line (column + 1)
 
-------------------------------------------------------------------------
--- Embed all of unicode, kind of, in a single byte!
-------------------------------------------------------------------------
 
-byteForChar :: Char -> Word8
-byteForChar c = fromIntegral (min 127 (ord c))
-  -- map non-ascii to a single non-ascii byte
-  -- the Lua lexer doesn't distinguish between
-  -- any of the non-ascii bytes
+-- | The remaining input text annotated with the starting position
+data AlexInput = AlexInput
+  { input_pos :: !SourcePos
+  , input_text :: !Text
+  }
 
-
-type Lexer a = Mode -> (Mode, a)
-
-data AlexInput = AlexInput { input_pos :: !SourcePos
-                           , input_text :: !Text
-                           }
-
+-- | Lexer mode
 data Mode
   = NormalMode
-  | CommentMode SourcePos Text
-  | QuoteMode SourcePos -- start
-              Text
+  | CommentMode AlexInput -- input at beginning of comment
+  | QuoteMode AlexInput -- input at beginning of long-quote
               Int       -- delim length
               Bool      -- is comment
                 -- ^ start delimlen iscomment

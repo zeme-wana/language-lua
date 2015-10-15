@@ -86,15 +86,14 @@ tokens :-
     <0> \'($sqstr|@charesc)*\' { tok LTokSLit }
 
     -- long strings
-    <0> \[ =* \[            { enterString }
-    <state_string> \] =* \] / { endStringPredicate }
-                              { endString }
-    <state_string> $longstr ;
+    <0> \[ =* \[              { enterString }
+    <state_string> \] =* \] / { endStringPredicate } { endMode }
+    <state_string> $longstr   ;
 
     -- comments
     <0> "--" \[ =* \[       { enterLongComment }
     <0> "--"                { enterComment }
-    <state_comment> .*      { endComment }
+    <state_comment> .*      { endMode }
 
     -- operators
     <0> "+"   { tok LTokPlus }
@@ -135,27 +134,20 @@ tokens :-
 
 {
 
+-- | Map a lexer 'Mode' an an alex state code.
 modeCode :: Mode -> Int
 modeCode mode =
   case mode of
-    NormalMode -> 0
+    NormalMode    -> 0
     CommentMode{} -> state_comment
-    QuoteMode{} -> state_string
+    QuoteMode{}   -> state_string
 
 scanner' :: AlexInput -> Mode -> [LLexeme]
 scanner' inp mode =
   case alexScanUser mode inp (modeCode mode) of
-    AlexEOF ->
-      case mode of
-        QuoteMode start rest _ True  -> [LLexeme{ltokToken=LTokUntermComment, ltokPos=start, ltokText=rest}
-                                        ,ltokEOF]
-        QuoteMode start rest _ False -> [LLexeme{ltokToken=LTokUntermString, ltokPos=start, ltokText=rest}
-                                        ,ltokEOF]
-        _                            -> [ltokEOF]
-    AlexError _ -> error "language-lua lexer internal error"
-                   -- unexpected characters are handled within the lexer itself
-                   -- (last rule)
-    AlexSkip inp' _ -> scanner' inp' mode
+    AlexEOF                   -> lexerEOF mode
+    AlexError _               -> error "language-lua lexer internal error"
+    AlexSkip inp' _           -> scanner' inp' mode
     AlexToken inp' len action ->
        case action len inp mode of
          (mode', Nothing) ->     scanner' inp' mode'
@@ -174,9 +166,8 @@ llexNamed ::
   String {- ^ name -} ->
   Text   {- ^ chunk -} ->
   [LLexeme]
-llexNamed name chunk = dropWhiteSpace
-                     $ scanner name
-                     $ dropSpecialComment chunk
+llexNamed name chunk = dropWhiteSpace (llexNamedWithWhiteSpace name chunk)
+
 
 -- | Lua lexer with explicit name, preseves white space and comments.
 llexNamedWithWhiteSpace ::
@@ -184,7 +175,6 @@ llexNamedWithWhiteSpace ::
   Text   {- ^ chunk -} ->
   [LLexeme]
 llexNamedWithWhiteSpace name chunk = scanner name (dropSpecialComment chunk)
-
 
 
 -- | Run Lua lexer on a file.
