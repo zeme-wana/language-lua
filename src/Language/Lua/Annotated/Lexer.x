@@ -81,14 +81,21 @@ tokens :-
     <0> @mantpart @exppart?                  { tok LTokNum }
     <0> @hexprefix @mantparthex @expparthex? { tok LTokNum }
 
+    <0> \'                   { enterSingleString }
+    <state_sstring> @charesc ;
+    <state_sstring> $sqstr   ;
+    <state_sstring> \'       { endMode }
+
     -- string literals
-    <0> \"($dqstr|@charesc)*\" { tok LTokSLit }
-    <0> \'($sqstr|@charesc)*\' { tok LTokSLit }
+    <0> \"                   { enterDoubleString }
+    <state_dstring> @charesc ;
+    <state_dstring> $dqstr   ;
+    <state_dstring> \"       { endMode }
 
     -- long strings
-    <0> \[ =* \[              { enterString }
-    <state_string> \] =* \] / { endStringPredicate } { endMode }
-    <state_string> $longstr   ;
+    <0> \[ =* \[              { enterLongString }
+    <state_lstring> \] =* \] / { endStringPredicate } { endMode }
+    <state_lstring> $longstr  ;
 
     -- comments
     <0> "--" \[ =* \[       { enterLongComment }
@@ -140,7 +147,9 @@ modeCode mode =
   case mode of
     NormalMode    -> 0
     CommentMode{} -> state_comment
-    QuoteMode{}   -> state_string
+    QuoteMode{}   -> state_lstring
+    SingleQuoteMode{} -> state_sstring
+    DoubleQuoteMode{} -> state_dstring
 
 scanner' :: AlexInput -> Mode -> [Lexeme SourcePos]
 scanner' inp mode =

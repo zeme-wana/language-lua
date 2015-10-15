@@ -40,6 +40,12 @@ lexerEOF mode =
     QuoteMode (AlexInput start rest) _ False ->
       [ Lexeme{ltokToken=LTokUntermString, ltokPos=start, ltokText=rest}
       ,ltokEOF ]
+    SingleQuoteMode (AlexInput start rest) ->
+      [ Lexeme{ltokToken=LTokUntermString, ltokPos=start, ltokText=rest}
+      ,ltokEOF ]
+    DoubleQuoteMode (AlexInput start rest) ->
+      [ Lexeme{ltokToken=LTokUntermString, ltokPos=start, ltokText=rest}
+      ,ltokEOF ]
     _ -> [ltokEOF]
 
 
@@ -51,8 +57,16 @@ type Action =
   (Mode, Maybe (Lexeme SourcePos)) {- ^ updated mode, emitted lexeme -}
 
 -- | Start lexing a long-quoted string literal
-enterString :: Action
-enterString len inp _ = (QuoteMode inp len False, Nothing)
+enterLongString :: Action
+enterLongString len inp _ = (QuoteMode inp len False, Nothing)
+
+-- | Start lexing a long-quoted string literal
+enterSingleString :: Action
+enterSingleString _ inp _ = (SingleQuoteMode inp, Nothing)
+
+-- | Start lexing a long-quoted string literal
+enterDoubleString :: Action
+enterDoubleString _ inp _ = (DoubleQuoteMode inp, Nothing)
 
 -- | Start lexing a long-quoted comment
 enterLongComment :: Action
@@ -98,6 +112,8 @@ endMode len (AlexInput posn _) mode = (NormalMode, Just lexeme)
   where
   lexeme =
     case mode of
+      SingleQuoteMode inp         -> longToken inp posn len LTokSLit
+      DoubleQuoteMode inp         -> longToken inp posn len LTokSLit
       CommentMode inp             -> longToken inp posn len LTokComment
       QuoteMode   inp _ isComment -> longToken inp posn len
                                    $ if isComment then LTokComment
@@ -175,6 +191,8 @@ data AlexInput = AlexInput
 -- | Lexer mode
 data Mode
   = NormalMode
+  | SingleQuoteMode AlexInput
+  | DoubleQuoteMode AlexInput
   | CommentMode AlexInput -- input at beginning of comment
   | QuoteMode AlexInput -- input at beginning of long-quote
               Int       -- delim length
