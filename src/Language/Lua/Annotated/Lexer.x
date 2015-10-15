@@ -137,7 +137,8 @@ tokens :-
     <0> "<<"  { tok LTokDLT }
     <0> ">>"  { tok LTokDGT }
 
-    .         { tok LTokUnexpected }
+    <0,state_sstring,state_dstring,state_lstring>
+       . | \n    { unexpectedChar }
 
 {
 
@@ -154,13 +155,12 @@ modeCode mode =
 scanner' :: AlexInput -> Mode -> [Lexeme SourcePos]
 scanner' inp mode =
   case alexScanUser mode inp (modeCode mode) of
-    AlexEOF                   -> lexerEOF mode
+    AlexEOF                   -> abortMode Nothing mode ++ [ltokEOF]
     AlexError _               -> error "language-lua lexer internal error"
     AlexSkip inp' _           -> scanner' inp' mode
     AlexToken inp' len action ->
        case action len inp mode of
-         (mode', Nothing) ->     scanner' inp' mode'
-         (mode', Just t ) -> t : scanner' inp' mode'
+         (mode', ts) -> ts ++ scanner' inp' mode'
 
 scanner :: String -> Text -> [Lexeme SourcePos]
 scanner name str = scanner' (AlexInput (startPos name) str) NormalMode

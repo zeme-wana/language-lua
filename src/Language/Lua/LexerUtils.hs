@@ -31,50 +31,60 @@ ltokEOF = Lexeme
   , ltokPos   = SourcePos "" (-1) (-1) (-1)
   }
 
-lexerEOF :: Mode -> [Lexeme SourcePos]
-lexerEOF mode =
+abortMode :: Maybe SourcePos -> Mode -> [Lexeme SourcePos]
+abortMode mb mode =
   case mode of
     QuoteMode (AlexInput start rest) _ True ->
-      [ Lexeme{ltokToken=LTokUntermComment, ltokPos=start, ltokText=rest}
-      , ltokEOF ]
+      [ Lexeme{ltokToken=LTokUntermComment, ltokPos=start, ltokText=keep start rest} ]
     QuoteMode (AlexInput start rest) _ False ->
-      [ Lexeme{ltokToken=LTokUntermString, ltokPos=start, ltokText=rest}
-      ,ltokEOF ]
+      [ Lexeme{ltokToken=LTokUntermString, ltokPos=start, ltokText=keep start rest} ]
     SingleQuoteMode (AlexInput start rest) ->
-      [ Lexeme{ltokToken=LTokUntermString, ltokPos=start, ltokText=rest}
-      ,ltokEOF ]
+      [ Lexeme{ltokToken=LTokUntermString, ltokPos=start, ltokText=keep start rest} ]
     DoubleQuoteMode (AlexInput start rest) ->
-      [ Lexeme{ltokToken=LTokUntermString, ltokPos=start, ltokText=rest}
-      ,ltokEOF ]
-    _ -> [ltokEOF]
+      [ Lexeme{ltokToken=LTokUntermString, ltokPos=start, ltokText=keep start rest} ]
+    _ -> []
+  where
+  keep start str =
+    case mb of
+      Nothing -> str
+      Just end -> Text.take (sourcePosIndex end - sourcePosIndex start) str
+
+unexpectedChar :: Action
+unexpectedChar len (AlexInput posn s) mode = (NormalMode, abortMode (Just posn) mode ++ [t])
+  where
+  t = Lexeme
+        { ltokToken = LTokUnexpected
+        , ltokPos   = posn
+        , ltokText  = Text.take len s
+        }
 
 
 -- | Type of alex actions
 type Action =
-  Int                   {- ^ lexeme length                -} ->
-  AlexInput             {- ^ current input                -} ->
-  Mode                  {- ^ lexer mode                   -} ->
-  (Mode, Maybe (Lexeme SourcePos)) {- ^ updated mode, emitted lexeme -}
+  Int                        {- ^ lexeme length         -} ->
+  AlexInput                  {- ^ current input         -} ->
+  Mode                       {- ^ lexer mode            -} ->
+  (Mode, [Lexeme SourcePos]) {- ^ updated mode, lexemes -}
 
 -- | Start lexing a long-quoted string literal
 enterLongString :: Action
-enterLongString len inp _ = (QuoteMode inp len False, Nothing)
+enterLongString len inp _ = (QuoteMode inp len False, [])
 
 -- | Start lexing a long-quoted string literal
 enterSingleString :: Action
-enterSingleString _ inp _ = (SingleQuoteMode inp, Nothing)
+enterSingleString _ inp _ = (SingleQuoteMode inp, [])
 
 -- | Start lexing a long-quoted string literal
 enterDoubleString :: Action
-enterDoubleString _ inp _ = (DoubleQuoteMode inp, Nothing)
+enterDoubleString _ inp _ = (DoubleQuoteMode inp, [])
 
 -- | Start lexing a long-quoted comment
 enterLongComment :: Action
-enterLongComment len inp _ = (QuoteMode inp (len - 2) True, Nothing)
+enterLongComment len inp _ = (QuoteMode inp (len - 2) True, [])
 
 -- | Start lexing a single-line comment
 enterComment :: Action
-enterComment _ inp _ = (CommentMode inp, Nothing)
+enterComment _ inp _ = (CommentMode inp, [])
 
 -- | Construct a lexeme spanning multiple matches
 longToken ::
@@ -108,7 +118,7 @@ endStringPredicate mode _ len _ =
 
 -- | Action called at the end of a lexer-sub mode.
 endMode :: Action
-endMode len (AlexInput posn _) mode = (NormalMode, Just lexeme)
+endMode len (AlexInput posn _) mode = (NormalMode, [lexeme])
   where
   lexeme =
     case mode of
@@ -122,10 +132,10 @@ endMode len (AlexInput posn _) mode = (NormalMode, Just lexeme)
 
 -- | Simplest action emitting a lexeme for the current match
 tok :: LToken -> Action
-tok lexeme len (AlexInput posn s) mode = (mode, Just t)
+tok token len (AlexInput posn s) mode = (mode, [t])
   where
   t = Lexeme
-        { ltokToken = lexeme
+        { ltokToken = token
         , ltokPos   = posn
         , ltokText  = Text.take len s
         }
