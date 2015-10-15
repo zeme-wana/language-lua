@@ -1,6 +1,11 @@
 {-# OPTIONS_GHC -w #-}
 {-# OPTIONS_HADDOCK hide #-}
 {-# LANGUAGE CPP #-}
+
+#ifndef MIN_VERSION_base
+#define MIN_VERSION_base(x,y,z) 1
+#endif
+
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Text.PrettyPrint.Leijen
@@ -116,7 +121,7 @@ module Text.PrettyPrint.Leijen (
         ) where
 
 import System.IO (Handle,hPutStr,hPutChar,stdout)
-#if __GLASGOW_HASKELL__ >= 710
+#if MIN_VERSION_base(4,8,0)
 import Prelude hiding ((<$>))
 #endif
 

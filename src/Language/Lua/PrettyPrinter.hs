@@ -1,5 +1,9 @@
 {-# LANGUAGE FlexibleInstances, CPP #-}
 
+#ifndef MIN_VERSION_base
+#define MIN_VERSION_base(x,y,z) 1
+#endif
+
 -- | Lua pretty-printer.
 module Language.Lua.PrettyPrinter
   ( pprint
@@ -9,7 +13,7 @@ module Language.Lua.PrettyPrinter
   , LPretty
   ) where
 
-#if __GLASGOW_HASKELL__ >= 710
+#if MIN_VERSION_base(4,8,0)
 import           Prelude                 hiding (EQ, GT, LT, (<$>))
 #else
 import           Prelude                 hiding (EQ, GT, LT)
