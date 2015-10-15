@@ -8,7 +8,7 @@ module Language.Lua.Annotated.Lexer
   , llexNamed
   , llexNamedWithWhiteSpace
   , llexFile
-  , LTok(..)
+  , LLexeme(..)
   , ltokEOF
   , SourcePos(..)
   , dropWhiteSpace
@@ -135,9 +135,6 @@ tokens :-
 
 {
 
-getStartCode :: Lexer Int
-getStartCode = fmap modeCode getMode
-
 modeCode :: Mode -> Int
 modeCode mode =
   case mode of
@@ -145,33 +142,30 @@ modeCode mode =
     CommentMode{} -> state_comment
     QuoteMode{} -> state_string
 
-monadScan' :: Lexer LTok
-monadScan' = do
-  inp@(AlexInput pos text) <- getInput
-  sc <- getStartCode
-  mode <- getMode
-  case alexScanUser mode inp sc of
-    AlexEOF -> do mode <- getMode
-                  case mode of
-                    QuoteMode start rest _ True -> eofError start rest LTokUntermComment
-                    QuoteMode start rest _ False -> eofError start rest LTokUntermString
-                    _ -> return ltokEOF
+scanner' :: AlexInput -> Mode -> [LLexeme]
+scanner' inp mode =
+  case alexScanUser mode inp (modeCode mode) of
+    AlexEOF ->
+      case mode of
+        QuoteMode start rest _ True  -> [LLexeme{ltokToken=LTokUntermComment, ltokPos=start, ltokText=rest}
+                                        ,ltokEOF]
+        QuoteMode start rest _ False -> [LLexeme{ltokToken=LTokUntermString, ltokPos=start, ltokText=rest}
+                                        ,ltokEOF]
+        _                            -> [ltokEOF]
     AlexError _ -> error "language-lua lexer internal error"
                    -- unexpected characters are handled within the lexer itself
                    -- (last rule)
-    AlexSkip inp' len ->
-      do setInput inp'
-         monadScan'
+    AlexSkip inp' _ -> scanner' inp' mode
     AlexToken inp' len action ->
-      do setInput inp'
-         let str = Text.take len text
-         maybe monadScan' return =<< action str pos
+       case action len inp mode of
+         (mode', Nothing) ->     scanner' inp' mode'
+         (mode', Just t ) -> t : scanner' inp' mode'
 
-scanner :: String -> Text -> [LTok]
-scanner name str = runAlex name str monadScan'
+scanner :: String -> Text -> [LLexeme]
+scanner name str = scanner' (AlexInput (startPos name) str) NormalMode
 
 -- | Lua lexer with default @=<string>@ name.
-llex :: Text {- ^ chunk -} -> [LTok]
+llex :: Text {- ^ chunk -} -> [LLexeme]
 llex = llexNamed "=<string>"
 
 
@@ -179,7 +173,7 @@ llex = llexNamed "=<string>"
 llexNamed ::
   String {- ^ name -} ->
   Text   {- ^ chunk -} ->
-  [LTok]
+  [LLexeme]
 llexNamed name chunk = dropWhiteSpace
                      $ scanner name
                      $ dropSpecialComment chunk
@@ -188,13 +182,13 @@ llexNamed name chunk = dropWhiteSpace
 llexNamedWithWhiteSpace ::
   String {- ^ name -} ->
   Text   {- ^ chunk -} ->
-  [LTok]
+  [LLexeme]
 llexNamedWithWhiteSpace name chunk = scanner name (dropSpecialComment chunk)
 
 
 
 -- | Run Lua lexer on a file.
-llexFile :: FilePath -> IO [LTok]
+llexFile :: FilePath -> IO [LLexeme]
 llexFile fp = fmap (llexNamed fp) (Text.readFile fp)
 
 }

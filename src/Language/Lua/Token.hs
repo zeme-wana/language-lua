@@ -1,74 +1,75 @@
 module Language.Lua.Token where
 
 -- | Lua tokens
-data LToken = LTokPlus               -- ^+
-            | LTokMinus              -- ^\-
-            | LTokStar               -- ^\*
-            | LTokSlash              -- ^/
-            | LTokPercent            -- ^%
-            | LTokExp                -- ^^
-            | LTokSh                 -- ^#
-            | LTokEqual              -- ^==
-            | LTokNotequal           -- ^~=
-            | LTokLEq                -- ^<=
-            | LTokGEq                -- ^\>=
-            | LTokLT                 -- ^<
-            | LTokGT                 -- ^\>
-            | LTokAssign             -- ^=
-            | LTokLParen             -- ^(
-            | LTokRParen             -- ^)
-            | LTokLBrace             -- ^{
-            | LTokRBrace             -- ^}
-            | LTokLBracket           -- ^\[
-            | LTokRBracket           -- ^]
-            | LTokDColon             -- ^::
-            | LTokSemic              -- ^;
-            | LTokColon              -- ^:
-            | LTokComma              -- ^,
-            | LTokDot                -- ^.
-            | LTokDDot               -- ^..
-            | LTokEllipsis           -- ^...
-            | LTokDLT                -- ^<<
-            | LTokDGT                -- ^\>\>
-            | LTokAmpersand          -- ^&
-            | LTokPipe               -- ^|
-            | LTokDSlash             -- ^//
-            | LTokTilde              -- ^~
+data LToken
+  = LTokPlus               -- ^+
+  | LTokMinus              -- ^\-
+  | LTokStar               -- ^\*
+  | LTokSlash              -- ^/
+  | LTokPercent            -- ^%
+  | LTokExp                -- ^^
+  | LTokSh                 -- ^#
+  | LTokEqual              -- ^==
+  | LTokNotequal           -- ^~=
+  | LTokLEq                -- ^<=
+  | LTokGEq                -- ^\>=
+  | LTokLT                 -- ^<
+  | LTokGT                 -- ^\>
+  | LTokAssign             -- ^=
+  | LTokLParen             -- ^(
+  | LTokRParen             -- ^)
+  | LTokLBrace             -- ^{
+  | LTokRBrace             -- ^}
+  | LTokLBracket           -- ^\[
+  | LTokRBracket           -- ^]
+  | LTokDColon             -- ^::
+  | LTokSemic              -- ^;
+  | LTokColon              -- ^:
+  | LTokComma              -- ^,
+  | LTokDot                -- ^.
+  | LTokDDot               -- ^..
+  | LTokEllipsis           -- ^...
+  | LTokDLT                -- ^<<
+  | LTokDGT                -- ^\>\>
+  | LTokAmpersand          -- ^&
+  | LTokPipe               -- ^|
+  | LTokDSlash             -- ^//
+  | LTokTilde              -- ^~
 
-            | LTokAnd                -- ^and
-            | LTokBreak              -- ^break
-            | LTokDo                 -- ^do
-            | LTokElse               -- ^else
-            | LTokElseIf             -- ^elseif
-            | LTokEnd                -- ^end
-            | LTokFalse              -- ^false
-            | LTokFor                -- ^for
-            | LTokFunction           -- ^function
-            | LTokGoto               -- ^goto
-            | LTokIf                 -- ^if
-            | LTokIn                 -- ^in
-            | LTokLocal              -- ^local
-            | LTokNil                -- ^nil
-            | LTokNot                -- ^not
-            | LTokOr                 -- ^or
-            | LTokRepeat             -- ^repeat
-            | LTokReturn             -- ^return
-            | LTokThen               -- ^then
-            | LTokTrue               -- ^true
-            | LTokUntil              -- ^until
-            | LTokWhile              -- ^while
+  | LTokAnd                -- ^and
+  | LTokBreak              -- ^break
+  | LTokDo                 -- ^do
+  | LTokElse               -- ^else
+  | LTokElseIf             -- ^elseif
+  | LTokEnd                -- ^end
+  | LTokFalse              -- ^false
+  | LTokFor                -- ^for
+  | LTokFunction           -- ^function
+  | LTokGoto               -- ^goto
+  | LTokIf                 -- ^if
+  | LTokIn                 -- ^in
+  | LTokLocal              -- ^local
+  | LTokNil                -- ^nil
+  | LTokNot                -- ^not
+  | LTokOr                 -- ^or
+  | LTokRepeat             -- ^repeat
+  | LTokReturn             -- ^return
+  | LTokThen               -- ^then
+  | LTokTrue               -- ^true
+  | LTokUntil              -- ^until
+  | LTokWhile              -- ^while
 
-            | LTokNum                -- ^number constant
-            | LTokSLit               -- ^string constant
-            | LTokIdent              -- ^identifier
-            | LTokEof                -- ^end of file
+  | LTokNum                -- ^number constant
+  | LTokSLit               -- ^string constant
+  | LTokIdent              -- ^identifier
+  | LTokEof                -- ^end of file
 
-            | LTokWhiteSpace         -- ^white space
-            | LTokComment            -- ^comment
+  | LTokWhiteSpace         -- ^white space
+  | LTokComment            -- ^comment
 
-            | LTokUntermString       -- ^ unterminated string
-            | LTokUntermComment      -- ^ unterminated comment
-            | LTokUnexpected         -- ^ unexpected character
+  | LTokUntermString       -- ^ unterminated string
+  | LTokUntermComment      -- ^ unterminated comment
+  | LTokUnexpected         -- ^ unexpected character
     deriving Eq
 
 instance Show LToken where

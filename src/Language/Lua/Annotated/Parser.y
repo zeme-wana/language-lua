@@ -17,74 +17,74 @@ import           Data.Text (Text)
 import qualified Data.Text.IO as Text
 
 import           Language.Lua.Token           (LToken(..))
-import           Language.Lua.Annotated.Lexer (SourcePos(..), LTok(..), llexNamed)
+import           Language.Lua.Annotated.Lexer (SourcePos(..), LLexeme(..), llexNamed)
 import           Language.Lua.Annotated.Syntax
 
 }
 
-%tokentype    { LTok }
+%tokentype    { LLexeme }
 %token
-'+'           { LTok { ltokLexeme = LTokPlus      } }
-'-'           { LTok { ltokLexeme = LTokMinus     } }
-'*'           { LTok { ltokLexeme = LTokStar      } }
-'/'           { LTok { ltokLexeme = LTokSlash     } }
-'//'          { LTok { ltokLexeme = LTokDSlash    } }
-'%'           { LTok { ltokLexeme = LTokPercent   } }
-'^'           { LTok { ltokLexeme = LTokExp       } }
-'#'           { LTok { ltokLexeme = LTokSh        } }
-'=='          { LTok { ltokLexeme = LTokEqual     } }
-'~='          { LTok { ltokLexeme = LTokNotequal  } }
-'<='          { LTok { ltokLexeme = LTokLEq       } }
-'>='          { LTok { ltokLexeme = LTokGEq       } }
-'<'           { LTok { ltokLexeme = LTokLT        } }
-'>'           { LTok { ltokLexeme = LTokGT        } }
-'&'           { LTok { ltokLexeme = LTokAmpersand } }
-'~'           { LTok { ltokLexeme = LTokTilde     } }
-'|'           { LTok { ltokLexeme = LTokPipe      } }
-'>>'          { LTok { ltokLexeme = LTokDGT       } }
-'<<'          { LTok { ltokLexeme = LTokDLT       } }
-'='           { LTok { ltokLexeme = LTokAssign    } }
-'('           { LTok { ltokLexeme = LTokLParen    } }
-')'           { LTok { ltokLexeme = LTokRParen    } }
-'{'           { LTok { ltokLexeme = LTokLBrace    } }
-'}'           { LTok { ltokLexeme = LTokRBrace    } }
-'['           { LTok { ltokLexeme = LTokLBracket  } }
-']'           { LTok { ltokLexeme = LTokRBracket  } }
-'::'          { LTok { ltokLexeme = LTokDColon    } }
-';'           { LTok { ltokLexeme = LTokSemic     } }
-':'           { LTok { ltokLexeme = LTokColon     } }
-','           { LTok { ltokLexeme = LTokComma     } }
-'.'           { LTok { ltokLexeme = LTokDot       } }
-'..'          { LTok { ltokLexeme = LTokDDot      } }
-'...'         { LTok { ltokLexeme = LTokEllipsis  } }
-'and'         { LTok { ltokLexeme = LTokAnd       } }
-'break'       { LTok { ltokLexeme = LTokBreak     } }
-'do'          { LTok { ltokLexeme = LTokDo        } }
-'else'        { LTok { ltokLexeme = LTokElse      } }
-'elseif'      { LTok { ltokLexeme = LTokElseIf    } }
-'end'         { LTok { ltokLexeme = LTokEnd       } }
-'false'       { LTok { ltokLexeme = LTokFalse     } }
-'for'         { LTok { ltokLexeme = LTokFor       } }
-'function'    { LTok { ltokLexeme = LTokFunction  } }
-'goto'        { LTok { ltokLexeme = LTokGoto      } }
-'if'          { LTok { ltokLexeme = LTokIf        } }
-'in'          { LTok { ltokLexeme = LTokIn        } }
-'local'       { LTok { ltokLexeme = LTokLocal     } }
-'nil'         { LTok { ltokLexeme = LTokNil       } }
-'not'         { LTok { ltokLexeme = LTokNot       } }
-'or'          { LTok { ltokLexeme = LTokOr        } }
-'repeat'      { LTok { ltokLexeme = LTokRepeat    } }
-'return'      { LTok { ltokLexeme = LTokReturn    } }
-'then'        { LTok { ltokLexeme = LTokThen      } }
-'true'        { LTok { ltokLexeme = LTokTrue      } }
-'until'       { LTok { ltokLexeme = LTokUntil     } }
-'while'       { LTok { ltokLexeme = LTokWhile     } }
-numeral       { LTok { ltokLexeme = LTokNum       } }
-literalString { LTok { ltokLexeme = LTokSLit      } }
-ident         { LTok { ltokLexeme = LTokIdent     } }
+'+'           { LLexeme { ltokToken = LTokPlus      } }
+'-'           { LLexeme { ltokToken = LTokMinus     } }
+'*'           { LLexeme { ltokToken = LTokStar      } }
+'/'           { LLexeme { ltokToken = LTokSlash     } }
+'//'          { LLexeme { ltokToken = LTokDSlash    } }
+'%'           { LLexeme { ltokToken = LTokPercent   } }
+'^'           { LLexeme { ltokToken = LTokExp       } }
+'#'           { LLexeme { ltokToken = LTokSh        } }
+'=='          { LLexeme { ltokToken = LTokEqual     } }
+'~='          { LLexeme { ltokToken = LTokNotequal  } }
+'<='          { LLexeme { ltokToken = LTokLEq       } }
+'>='          { LLexeme { ltokToken = LTokGEq       } }
+'<'           { LLexeme { ltokToken = LTokLT        } }
+'>'           { LLexeme { ltokToken = LTokGT        } }
+'&'           { LLexeme { ltokToken = LTokAmpersand } }
+'~'           { LLexeme { ltokToken = LTokTilde     } }
+'|'           { LLexeme { ltokToken = LTokPipe      } }
+'>>'          { LLexeme { ltokToken = LTokDGT       } }
+'<<'          { LLexeme { ltokToken = LTokDLT       } }
+'='           { LLexeme { ltokToken = LTokAssign    } }
+'('           { LLexeme { ltokToken = LTokLParen    } }
+')'           { LLexeme { ltokToken = LTokRParen    } }
+'{'           { LLexeme { ltokToken = LTokLBrace    } }
+'}'           { LLexeme { ltokToken = LTokRBrace    } }
+'['           { LLexeme { ltokToken = LTokLBracket  } }
+']'           { LLexeme { ltokToken = LTokRBracket  } }
+'::'          { LLexeme { ltokToken = LTokDColon    } }
+';'           { LLexeme { ltokToken = LTokSemic     } }
+':'           { LLexeme { ltokToken = LTokColon     } }
+','           { LLexeme { ltokToken = LTokComma     } }
+'.'           { LLexeme { ltokToken = LTokDot       } }
+'..'          { LLexeme { ltokToken = LTokDDot      } }
+'...'         { LLexeme { ltokToken = LTokEllipsis  } }
+'and'         { LLexeme { ltokToken = LTokAnd       } }
+'break'       { LLexeme { ltokToken = LTokBreak     } }
+'do'          { LLexeme { ltokToken = LTokDo        } }
+'else'        { LLexeme { ltokToken = LTokElse      } }
+'elseif'      { LLexeme { ltokToken = LTokElseIf    } }
+'end'         { LLexeme { ltokToken = LTokEnd       } }
+'false'       { LLexeme { ltokToken = LTokFalse     } }
+'for'         { LLexeme { ltokToken = LTokFor       } }
+'function'    { LLexeme { ltokToken = LTokFunction  } }
+'goto'        { LLexeme { ltokToken = LTokGoto      } }
+'if'          { LLexeme { ltokToken = LTokIf        } }
+'in'          { LLexeme { ltokToken = LTokIn        } }
+'local'       { LLexeme { ltokToken = LTokLocal     } }
+'nil'         { LLexeme { ltokToken = LTokNil       } }
+'not'         { LLexeme { ltokToken = LTokNot       } }
+'or'          { LLexeme { ltokToken = LTokOr        } }
+'repeat'      { LLexeme { ltokToken = LTokRepeat    } }
+'return'      { LLexeme { ltokToken = LTokReturn    } }
+'then'        { LLexeme { ltokToken = LTokThen      } }
+'true'        { LLexeme { ltokToken = LTokTrue      } }
+'until'       { LLexeme { ltokToken = LTokUntil     } }
+'while'       { LLexeme { ltokToken = LTokWhile     } }
+numeral       { LLexeme { ltokToken = LTokNum       } }
+literalString { LLexeme { ltokToken = LTokSLit      } }
+ident         { LLexeme { ltokToken = LTokIdent     } }
 
 %monad { Parser }
-%lexer { (>>=) lexerP } { LTok { ltokLexeme = LTokEof } }
+%lexer { (>>=) lexerP } { LLexeme { ltokToken = LTokEof } }
 %error { errorP }
 
 -- local a=b(nil)() is one statement
@@ -276,9 +276,9 @@ name ::   { Name SourcePos            }
 {
 
 data Parser a = Parser
-  { runP :: forall r. (SourcePos -> String -> r) -> (a -> [LTok] -> r) -> [LTok] -> r }
+  { runP :: forall r. (SourcePos -> String -> r) -> (a -> [LLexeme] -> r) -> [LLexeme] -> r }
 
-runParser :: Parser a -> [LTok] -> Either (String,SourcePos) a
+runParser :: Parser a -> [LLexeme] -> Either (String,SourcePos) a
 runParser p = runP p (\pos e -> Left (e,pos)) (\x _ -> Right x)
 
 instance Functor     Parser where fmap    = liftM
@@ -289,18 +289,18 @@ instance Monad       Parser where return  = pure
                                             runP m e $ \a ->
                                             runP (f a) e k
 
-errorP :: LTok -> Parser a
-errorP LTok { ltokPos = pos, ltokLexeme = t } =
+errorP :: LLexeme -> Parser a
+errorP LLexeme { ltokPos = pos, ltokToken = t } =
   Parser $ \e _ _ -> e pos ("unexpected " ++ show t)
 
-noEndP :: LTok -> Parser a
-noEndP LTok { ltokPos = pos, ltokLexeme = t } =
+noEndP :: LLexeme -> Parser a
+noEndP LLexeme { ltokPos = pos, ltokToken = t } =
   Parser $ \e _ _ -> e pos ("unterminated " ++ show t)
 
-lexerP :: Parser LTok
+lexerP :: Parser LLexeme
 lexerP = Parser $ \ _ k (l:ls) -> k l ls
 
-sl :: LTok -> (SourcePos -> a) -> a
+sl :: LLexeme -> (SourcePos -> a) -> a
 sl x f = f (ltokPos x)
 
 sp :: Annotated p => p SourcePos -> (SourcePos -> a) -> a

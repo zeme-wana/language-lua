@@ -3,11 +3,9 @@
 module Language.Lua.LexerUtils where
 
 import           Control.DeepSeq (NFData(..))
-import           Control.Monad (ap, liftM)
-import           Data.Char (isAscii, ord)
+import           Data.Char (ord)
 import           Data.Text (Text)
 import qualified Data.Text as Text
-import           Data.Monoid ((<>))
 import           Data.Word (Word8)
 
 #if !MIN_VERSION_base(4,8,0)
@@ -17,59 +15,46 @@ import           Control.Applicative (Applicative(..))
 import           Language.Lua.Token
 
 -- | Lua token with position information.
-data LTok = LTok
-  { ltokLexeme :: LToken
+data LLexeme = LLexeme
+  { ltokToken :: LToken
   , ltokPos   :: SourcePos
   , ltokText  :: Text
   } deriving (Show,Eq)
 
-ltokEOF :: LTok
-ltokEOF = LTok { ltokText   = ""
-               , ltokLexeme = LTokEof
+ltokEOF :: LLexeme
+ltokEOF = LLexeme { ltokText   = ""
+               , ltokToken = LTokEof
                , ltokPos    = SourcePos "" (-1) (-1) (-1)
                }
 
-isEOF :: LTok -> Bool
-isEOF x = ltokLexeme x == LTokEof
+isEOF :: LLexeme -> Bool
+isEOF x = ltokToken x == LTokEof
 
 
 -- The matched token and the starting position
-type Action result = Text -> SourcePos -> Lexer result
+type Action = Int -> AlexInput -> Mode -> (Mode, Maybe LLexeme)
 
-getState :: Lexer AlexState
-getState = Lexer $ \s -> (s,s)
+enterString :: Action
+enterString len (AlexInput posn t) _ = (QuoteMode posn t len False, Nothing)
 
-getMode :: Lexer Mode
-getMode = fmap alex_mode getState
+enterLongComment :: Action
+enterLongComment len (AlexInput posn t) _ = (QuoteMode posn t (len - 2) True, Nothing)
 
-setMode :: Mode -> Lexer (Maybe LTok)
-setMode mode = Lexer $ \s -> (s{alex_mode=mode},Nothing)
+enterComment :: Action
+enterComment _ (AlexInput p t) _ = (CommentMode p t, Nothing)
 
-enterString :: Action (Maybe LTok)
-enterString t posn =
-  do inp <- fmap input_text getInput
-     setMode (QuoteMode posn (t<>inp) (Text.length t) False)
-
-enterLongComment :: Action (Maybe LTok)
-enterLongComment t posn =
-  do inp <- fmap input_text getInput
-     setMode (QuoteMode posn (t<>inp) (Text.length t - 2) True)
-
-enterComment :: Action (Maybe LTok)
-enterComment t p =
-  do inp <- fmap input_text getInput
-     setMode (CommentMode p (t<>inp))
-
-endComment :: Action (Maybe LTok)
-endComment s posn =
-  do CommentMode start text <- getMode
-     _ <- setMode NormalMode
-     let commentLength = sourcePosIndex posn - sourcePosIndex start + Text.length s
-         str = Text.take commentLength text
-     return (Just LTok { ltokLexeme = LTokComment
-                       , ltokPos   = start
-                       , ltokText  = str
-                       })
+endComment :: Action
+endComment len (AlexInput posn _) mode =
+  case mode of
+    CommentMode start text -> (NormalMode, Just t)
+      where
+      commentLength = sourcePosIndex posn - sourcePosIndex start + len
+      str = Text.take commentLength text
+      t = LLexeme { ltokToken = LTokComment
+               , ltokPos   = start
+               , ltokText  = str
+               }
+    _ -> error "endComment: internal lexer error"
 
 endStringPredicate ::
   Mode ->
@@ -80,21 +65,25 @@ endStringPredicate ::
 endStringPredicate (QuoteMode _ _ startlen _) _ len _ = len == startlen
 endStringPredicate _ _ _ _ = error "endStringPredicate called from wrong mode"
 
-endString :: Action (Maybe LTok)
-endString s posn =
-  do QuoteMode start text _ isComment <- getMode
-     _ <- setMode NormalMode
-     let stringLength = sourcePosIndex posn - sourcePosIndex start + Text.length s
-         str = Text.take stringLength text
-         t | isComment = LTokComment
-           | otherwise = LTokSLit
-     return $ Just LTok { ltokPos = start, ltokLexeme = t, ltokText = str }
+endString :: Action
+endString len (AlexInput posn _) mode =
+  case mode of
+    QuoteMode start text _ isComment -> (NormalMode, Just t)
+      where
+      stringLength = sourcePosIndex posn - sourcePosIndex start + len
+      str = Text.take stringLength text
+      lexeme | isComment = LTokComment
+             | otherwise = LTokSLit
+      t = LLexeme { ltokPos = start, ltokToken = lexeme, ltokText = str }
+    _ -> error "endString: internal lexer error"
 
-
-tok :: LToken -> Action (Maybe LTok)
-tok t s posn = return (Just LTok { ltokLexeme = t
-                                 , ltokPos   = posn
-                                 , ltokText  = s })
+tok :: LToken -> Action
+tok lexeme len (AlexInput posn s) mode = (mode, Just t)
+  where
+  t = LLexeme { ltokToken = lexeme
+           , ltokPos   = posn
+           , ltokText  = Text.take len s
+           }
 
 -- | Drop the first line of a Lua file when it starts with a '#'
 dropSpecialComment :: Text -> Text
@@ -103,18 +92,13 @@ dropSpecialComment text
   | otherwise = text
 -- Newline is preserved in order to ensure that line numbers stay correct
 
-dropWhiteSpace :: [LTok] -> [LTok]
-dropWhiteSpace = filter (not . isWhite . ltokLexeme)
+dropWhiteSpace :: [LLexeme] -> [LLexeme]
+dropWhiteSpace = filter (not . isWhite . ltokToken)
   where
   isWhite LTokWhiteSpace = True
   isWhite LTokComment    = True
   isWhite _              = False
 
-
-
-------------------------------------------------------------------------
--- Custom Lexer wrapper
-------------------------------------------------------------------------
 
 data SourcePos = SourcePos
                   { sourcePosName :: String
@@ -152,19 +136,13 @@ move (SourcePos name index line column) c =
 ------------------------------------------------------------------------
 
 byteForChar :: Char -> Word8
-byteForChar c
-  | isAscii c = fromIntegral (ord c)
-  | otherwise = 0   -- map non-ascii to a single non-ascii byte
-                    -- the Lua lexer doesn't distinguish between
-                    -- any of the non-ascii bytes
+byteForChar c = fromIntegral (min 127 (ord c))
+  -- map non-ascii to a single non-ascii byte
+  -- the Lua lexer doesn't distinguish between
+  -- any of the non-ascii bytes
 
 
-newtype Lexer a = Lexer { unAlex :: AlexState -> (AlexState, a) }
-
-data AlexState = AlexState
-      { alex_inp  :: AlexInput
-      , alex_mode :: Mode       -- ^ the lexer mode
-      }
+type Lexer a = Mode -> (Mode, a)
 
 data AlexInput = AlexInput { input_pos :: !SourcePos
                            , input_text :: !Text
@@ -178,48 +156,3 @@ data Mode
               Int       -- delim length
               Bool      -- is comment
                 -- ^ start delimlen iscomment
-
--- Compile with -funbox-strict-fields for best results!
-
-runAlex :: String -> Text -> Lexer LTok -> [LTok]
-runAlex name input f = go s0
-  where
-  s0 = AlexState
-        { alex_inp = AlexInput (startPos name) input
-        , alex_mode = NormalMode
-        }
-  go s = case unAlex f s of
-           (s',x) | isEOF x -> [x]
-                  | otherwise -> x : go s'
-
-getInput :: Lexer AlexInput
-getInput = Lexer $ \s@AlexState{alex_inp=inp} -> (s,inp)
-
-setInput :: AlexInput -> Lexer ()
-setInput inp = Lexer $ \s -> (s{alex_inp=inp},())
-
-eofError :: SourcePos -> Text -> LToken -> Lexer LTok
-eofError posn text t =
-  do setInput (AlexInput posn Text.empty)
-     _ <- setMode NormalMode
-     return LTok
-       { ltokLexeme = t
-       , ltokPos   = posn
-       , ltokText  = text
-       }
-
-
-instance Functor Lexer where
-  fmap = liftM
-
-instance Applicative Lexer where
-  pure a = Lexer $ \s -> (s,a)
-  (<*>) = ap
-
-instance Monad Lexer where
-  return = pure
-  m >>= k  = Lexer $ \s ->
-              case unAlex m s of
-                (s',a) -> unAlex (k a) s'
-
-
