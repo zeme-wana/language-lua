@@ -181,7 +181,8 @@ alexGetByte (AlexInput p text) =
   do (c,text') <- Text.uncons text
      let p' = move p c
          x = fromIntegral (min 127 (ord c))
-     x `seq` p' `seq` return (x, AlexInput p' text')
+         inp = AlexInput p' text'
+     x `seq` inp `seq` return (x, inp)
 
 -- | Update a 'SourcePos' for a particular matched character
 move :: SourcePos -> Char -> SourcePos
@@ -194,8 +195,8 @@ move (SourcePos name index line column) c =
 
 -- | The remaining input text annotated with the starting position
 data AlexInput = AlexInput
-  { input_pos :: !SourcePos
-  , input_text :: !Text
+  { input_pos  :: {-# UNPACK #-} !SourcePos
+  , input_text :: {-# UNPACK #-} !Text
   }
 
 -- | Lexer mode
