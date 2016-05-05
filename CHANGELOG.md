@@ -1,5 +1,9 @@
 ## Changelog
 
+#### 0.9.0
+
+- Transition to parsing Text using a simplified alex lexer and happy parser
+
 #### 0.8.0
 
 - We can now parse Unicode strings from UTF-8 encoded files. By default these
