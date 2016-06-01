@@ -5,12 +5,12 @@ Description:
 
 Version:             0.9.0
 Synopsis:            Lua parser and pretty-printer
-Homepage:            http://github.com/osa1/language-lua
-Bug-reports:         http://github.com/osa1/language-lua/issues
+Homepage:            http://github.com/glguy/language-lua
+Bug-reports:         http://github.com/glguy/language-lua/issues
 License:             BSD3
 License-file:        LICENSE
-Author:              Ömer Sinan Ağacan
-Maintainer:          Ömer Sinan Ağacan <omeragacan@gmail.com>, Eric Mertens <emertens@gmail.com>
+Author:              Ömer Sinan Ağacan, Eric Mertens
+Maintainer:          Eric Mertens <emertens@gmail.com>
 Category:            Language
 Build-type:          Simple
 Stability:           Experimental
@@ -47,7 +47,7 @@ Library
   Other-modules:     Text.PrettyPrint.Leijen,
                      Language.Lua.LexerUtils
 
-  Build-depends:     base >= 4.5 && < 4.9,
+  Build-depends:     base >= 4.5 && < 4.10,
                      deepseq,
                      array >= 0.4 && < 0.6,
                      bytestring >= 0.10 && < 0.11,
@@ -64,7 +64,7 @@ Test-Suite tests
   Default-language:  Haskell2010
   Hs-source-dirs:    tests
   Main-is:           Main.hs
-  Build-depends:     base >= 4.5 && < 4.9,
+  Build-depends:     base >= 4.5 && < 4.10,
                      deepseq,
                      directory,
                      filepath,

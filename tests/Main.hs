@@ -243,7 +243,7 @@ regressions = testGroup "Regression tests"
         let exp = Unop Neg (Unop Neg (Unop Neg (Number "120")))
          in assertEqual "Parsed and/or printed wrong"
                         (Right exp)
-                        (P.parseText P.exp (show (pprint exp)))
+                        (P.parseText P.exp (Text.pack (show (pprint exp))))
     ]
   where
     pp :: String -> Assertion
@@ -274,7 +274,7 @@ parseFilesTest msg root = testCase msg $ do
       Left err -> assertFailure ("Parser error in " ++ luaFile ++ ": " ++ show err)
       Right st -> -- force st `seq` return ()
         let printed = show (pprint st)
-         in case P.parseText P.chunk printed of
+         in case P.parseText P.chunk (Text.pack printed) of
               Left err ->
                 assertFailure ("Parser error while parsing printed version of "
                                ++ luaFile ++ ": " ++ show err ++ "\nPrinted file:\n"
