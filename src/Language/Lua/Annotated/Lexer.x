@@ -138,7 +138,7 @@ tokens :-
     <0> ">>"  { tok TokDGT }
 
     <state_sstring,state_dstring> \\ .  { invalidEsc }
-    <state_sstring,state_dstring> \\ \n { unterminatedString }
+    <state_sstring,state_dstring> \n { unterminatedString }
 
     <0> .                              { invalidChar }
 
