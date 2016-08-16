@@ -9,7 +9,6 @@ import           Data.Data       (Data, Typeable)
 import           Data.Text       (Text)
 import           GHC.Generics    (Generic)
 import           Prelude         hiding (EQ, GT, LT)
-import           Language.Lua.LexerUtils
 
 data Name a = Name a Text deriving (Show, Eq, Functor, Data, Typeable, Generic)
 
