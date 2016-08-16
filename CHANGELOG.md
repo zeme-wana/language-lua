@@ -1,5 +1,9 @@
 ## Changelog
 
+#### 0.10.0
+
+- Track the end positions of tokens and the AST in addition to the start
+
 #### 0.9.0
 
 - Transition to parsing Text using a simplified alex lexer and happy parser
