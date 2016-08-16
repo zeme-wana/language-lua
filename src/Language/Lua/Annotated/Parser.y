@@ -1,6 +1,7 @@
 {
 module Language.Lua.Annotated.Parser
-  ( parseText
+  ( parseTokens
+  , parseText
   , parseNamedText
   , parseFile
   , Parser
@@ -277,7 +278,11 @@ name ::   { Name SourceRange           }
 
 {
 
-newtype Parser a = Parser { runParser :: [LexToken] -> Either (SourceRange,String) a }
+newtype Parser a = Parser ([LexToken] -> Either (SourceRange,String) a)
+
+-- | Parse a stream of tokens.
+parseTokens :: Parser a -> [LexToken] -> Either (SourceRange,String) a
+parseTokens (Parser p) = p
 
 chunk :: Parser (Block SourceRange)
 chunk = Parser chunk_
@@ -317,7 +322,7 @@ parseNamedText ::
   String {- ^ name -} ->
   Text {- ^ chunk -} ->
   Either (SourceRange, String) a
-parseNamedText p n xs = runParser p (llexNamed n xs)
+parseNamedText p n xs = parseTokens p (llexNamed n xs)
 
 -- | Runs Lua lexer before parsing. Use @parseText stat@ to parse
 -- statements, and @parseText exp@ to parse expressions.
