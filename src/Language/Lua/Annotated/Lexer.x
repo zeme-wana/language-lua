@@ -11,6 +11,8 @@ module Language.Lua.Annotated.Lexer
   , LexToken(..)
   , SourcePos(..)
   , SourceRange(..)
+  , showPos
+  , showRange
   , dropWhiteSpace
   ) where
 

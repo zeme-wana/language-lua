@@ -8,8 +8,6 @@ module Language.Lua.Annotated.Parser
   , chunk
   , exp
   , stat
-  , showPos
-  , showRange
   , SourcePos(..)
   , SourceRange(..)
   ) where
@@ -21,7 +19,8 @@ import           Data.Text (Text)
 import qualified Data.Text.IO as Text
 
 import           Language.Lua.Token           (Token(..))
-import           Language.Lua.Annotated.Lexer (SourcePos(..), SourceRange(..), LexToken(..), llexNamed)
+import           Language.Lua.Annotated.Lexer
+                    (SourcePos(..), SourceRange(..), LexToken(..), llexNamed)
 import           Language.Lua.Annotated.Syntax
 
 }
@@ -308,12 +307,6 @@ errorP ts =
 noEndP :: LexToken -> Either (SourceRange,String) a
 noEndP LexToken { ltokRange = pos, ltokToken = t } =
   Left (pos, "unterminated " ++ show t)
-
-showPos :: SourcePos -> String
-showPos p = show (sourcePosLine p) ++ ":" ++ show (sourcePosColumn p)
-
-showRange :: SourceRange -> String
-showRange p = showPos (sourceFrom p) ++ "--" ++ showPos (sourceTo p)
 
 -- | Runs Lua lexer before parsing. Use @parseNamedText stat "name"@ to parse
 -- statements, and @parseText exp "name"@ to parse expressions.

@@ -224,6 +224,11 @@ singleRange p = SourceRange { sourceFrom = p, sourceTo = p }
 startPos :: String -> SourcePos
 startPos n = SourcePos n 0 1 1
 
+showPos :: SourcePos -> String
+showPos p = show (sourcePosLine p) ++ ":" ++ show (sourcePosColumn p)
+
+showRange :: SourceRange -> String
+showRange p = showPos (sourceFrom p) ++ "--" ++ showPos (sourceTo p)
 
 
 
