@@ -3,6 +3,7 @@ module Language.Lua.Annotated
   , parseText
   , parseNamedText
   , parseFile
+  , parseTokens
   , stat
   , exp
   , chunk

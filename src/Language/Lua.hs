@@ -3,6 +3,7 @@ module Language.Lua
   , parseText
   , parseNamedText
   , parseFile
+  , parseTokens
   , stat
   , exp
   , chunk

@@ -2,6 +2,7 @@ module Language.Lua.Parser
   ( A.parseText
   , A.parseNamedText
   , parseFile
+  , A.parseTokens
   , stat
   , exp
   , chunk
