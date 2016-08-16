@@ -285,10 +285,6 @@ instance Annotated Name where
     ann (Name a _) = a
     amap f (Name a x1) = Name (f a) x1
 
-instance Annotated LexToken where
-    ann = ltokPos
-    amap f l = l { ltokPos = f (ltokPos l) }
-
 instance NFData a => NFData (Name a)
 instance NFData a => NFData (Stat a)
 instance NFData a => NFData (Exp a)

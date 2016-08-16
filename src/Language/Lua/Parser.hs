@@ -11,11 +11,11 @@ import           Control.Monad                   (liftM)
 import           Prelude                         hiding (exp)
 
 import qualified Language.Lua.Annotated.Parser   as A
-import           Language.Lua.Annotated.Lexer (SourcePos)
+import           Language.Lua.Annotated.Lexer (SourceRange)
 import           Language.Lua.Annotated.Simplify
 import           Language.Lua.Syntax
 
-parseFile :: FilePath -> IO (Either (SourcePos,String) Block)
+parseFile :: FilePath -> IO (Either (SourceRange,String) Block)
 parseFile = liftM (liftM sBlock) . A.parseFile
 
 stat :: A.Parser Stat

@@ -7,20 +7,25 @@ module Language.Lua.Annotated.Parser
   , chunk
   , exp
   , stat
+  , showPos
+  , showRange
+  , SourcePos(..)
+  , SourceRange(..)
   ) where
 
 import           Control.Monad (liftM,ap)
 import           Prelude hiding (LT,GT,EQ,exp)
+import           Data.Maybe(fromMaybe)
 import           Data.Text (Text)
 import qualified Data.Text.IO as Text
 
 import           Language.Lua.Token           (Token(..))
-import           Language.Lua.Annotated.Lexer (SourcePos(..), LexToken(..), llexNamed)
+import           Language.Lua.Annotated.Lexer (SourcePos(..), SourceRange(..), LexToken(..), llexNamed)
 import           Language.Lua.Annotated.Syntax
 
 }
 
-%tokentype    { LexToken SourcePos }
+%tokentype    { LexToken }
 %token
 '+'           { LexToken { ltokToken = TokPlus      } }
 '-'           { LexToken { ltokToken = TokMinus     } }
@@ -81,7 +86,7 @@ numeral       { LexToken { ltokToken = TokNum       } }
 literalString { LexToken { ltokToken = TokSLit      } }
 ident         { LexToken { ltokToken = TokIdent     } }
 
-%monad { Either (SourcePos, String) }
+%monad { Either (SourceRange, String) }
 %error { errorP }
 
 -- local a=b(nil)() is one statement
@@ -126,30 +131,30 @@ sepBy1   (p,sep) : revSepBy1(p,sep)       { reverse $1 }
 revSepBy1(p,sep) : p                      { [$1]       }
                  | revSepBy1(p,sep) sep p { $3 : $1    }
 
-block ::                    { Block SourcePos              }
-  : many(stat) opt(retstat) { Block (blockAnn $1 $2) $1 $2 }
+block ::                    { Block SourceRange      }
+  : many(stat) opt(retstat) { at ($1,$2) Block $1 $2 }
 
-retstat ::                           { [Exp SourcePos] }
-  : 'return' sepBy(exp,',') opt(';') { $2              }
+retstat ::                           { [Exp SourceRange] }
+  : 'return' sepBy(exp,',') opt(';') { $2                }
 
-stat ::                                                   { Stat SourcePos                }
-  : ';'                                                   { sp $1 EmptyStat               }
-  | varlist '=' explist                                   { sp (head $1) Assign $1 $3     }
-  | functioncall %prec STAT                               { sp $1 FunCall $1              }
-  | '::' name '::'                                        { sp $1 Label $2                }
-  | 'break'                                               { sp $1 Break                   }
-  | 'goto' name                                           { sp $1 Goto $2                 }
-  | 'local' namelist opt(assign)                          { sp $1 LocalAssign $2 $3       }
+stat ::                                                   { Stat SourceRange                  }
+  : ';'                                                   { at $1 EmptyStat                   }
+  | varlist '=' explist                                   { at (head $1,last $3) Assign $1 $3 }
+  | functioncall %prec STAT                               { at $1 FunCall $1                  }
+  | '::' name '::'                                        { at ($1,$3) Label $2               }
+  | 'break'                                               { at $1 Break                       }
+  | 'goto' name                                           { at ($1,$2) Goto $2                }
+  | 'local' namelist opt(assign)                          { at ($1,($2,$3)) LocalAssign $2 $3 }
 
   ------- block structures -------------------------------
-  | 'function' funcname funcbody 'end'                    { sp $1 FunAssign $2 $3         }
-  | 'local' 'function' name funcbody 'end'                { sp $1 LocalFunAssign $3 $4    }
-  | 'repeat' block 'until' exp                            { sp $1 Repeat $2 $4            }
-  | 'do' block 'end'                                      { sp $1 Do $2                   }
-  | 'while' exp 'do' block 'end'                          { sp $1 While $2 $4             }
-  | 'if' exp 'then' block many(elseif) opt(else) 'end'    { sp $1 If (($2,$4):$5) $6      }
-  | 'for' name '=' exp ',' exp opt(step) 'do' block 'end' { sp $1 ForRange $2 $4 $6 $7 $9 }
-  | 'for' namelist 'in' explist 'do' block 'end'          { sp $1 ForIn $2 $4 $6          }
+  | 'function' funcname funcbody 'end'                    { at ($1,$4)  FunAssign $2 $3         }
+  | 'local' 'function' name funcbody 'end'                { at ($1,$5)  LocalFunAssign $3 $4    }
+  | 'repeat' block 'until' exp                            { at ($1,$4)  Repeat $2 $4            }
+  | 'do' block 'end'                                      { at ($1,$3)  Do $2                   }
+  | 'while' exp 'do' block 'end'                          { at ($1,$5)  While $2 $4             }
+  | 'if' exp 'then' block many(elseif) opt(else) 'end'    { at ($1,$7)  If (($2,$4):$5) $6      }
+  | 'for' name '=' exp ',' exp opt(step) 'do' block 'end' { at ($1,$10) ForRange $2 $4 $6 $7 $9 }
+  | 'for' namelist 'in' explist 'do' block 'end'          { at ($1,$7)  ForIn $2 $4 $6          }
 
   ------- error cases for block structures ---------------
   | 'function' funcname funcbody error                    {% noEndP $1 }
@@ -170,145 +175,140 @@ varlist  : sepBy1(var,  ',') { $1 }
 explist  : sepBy1(exp,  ',') { $1 }
 namelist : sepBy1(name, ',') { $1 }
 
-prefixexp ::                  { PrefixExp SourcePos }
-  : var                       { sp $1 PEVar $1      }
-  | functioncall %prec PREFIX { sp $1 PEFunCall $1  }
-  | '(' exp ')'               { sp $1 Paren $2      }
+prefixexp ::                  { PrefixExp SourceRange }
+  : var                       { at $1 PEVar $1        }
+  | functioncall %prec PREFIX { at $1 PEFunCall $1    }
+  | '(' exp ')'               { at ($1,$3) Paren $2   }
 
-functioncall ::               { FunCall SourcePos         }
-  : prefixexp            args { sp $1 NormalFunCall $1 $2 }
-  | prefixexp methodname args { sp $1 MethodCall $1 $2 $3 }
+functioncall ::               { FunCall SourceRange       }
+  : prefixexp            args { at ($1,$2) NormalFunCall $1 $2 }
+  | prefixexp methodname args { at ($1,$3) MethodCall $1 $2 $3 }
 
-funcname ::                               { FunName SourcePos      }
-  : name many(dottedname) opt(methodname) { sp $1 FunName $1 $2 $3 }
+funcname ::                               { FunName SourceRange              }
+  : name many(dottedname) opt(methodname) { at ($1,($2,$3)) FunName $1 $2 $3 }
 
 dottedname : '.' name  { $2 }
 methodname : ':' name  { $2 }
 
-var ::                    { Var SourcePos          }
-  : name                  { sp $1 VarName $1       }
-  | prefixexp '[' exp ']' { sp $1 Select $1 $3     }
-  | prefixexp '.' name    { sp $1 SelectName $1 $3 }
+var ::                    { Var SourceRange               }
+  : name                  { at $1 VarName $1              }
+  | prefixexp '[' exp ']' { at ($1,$4) Select $1 $3       }
+  | prefixexp '.' name    { at ($1,$3) SelectName $1 $3   }
 
-exp ::                     { Exp SourcePos                }
-  : 'nil'                  { sp $1 Nil                    }
-  | 'false'                { sp $1 Bool False             }
-  | 'true'                 { sp $1 Bool True              }
-  | numeral                { sp $1 Number (ltokLexeme $1) }
-  | literalString          { sp $1 String (ltokLexeme $1) }
-  | '...'                  { sp $1 Vararg                 }
-  | functiondef            { sp $1 EFunDef $1             }
-  | prefixexp %prec EXP    { sp $1 PrefixExp $1           }
-  | tableconstructor       { sp $1 TableConst $1          }
+exp ::                     { Exp SourceRange              }
+  : 'nil'                  { at $1 Nil                    }
+  | 'false'                { at $1 Bool False             }
+  | 'true'                 { at $1 Bool True              }
+  | numeral                { at $1 Number (ltokLexeme $1) }
+  | literalString          { at $1 String (ltokLexeme $1) }
+  | '...'                  { at $1 Vararg                 }
+  | functiondef            { at $1 EFunDef $1             }
+  | prefixexp %prec EXP    { at $1 PrefixExp $1           }
+  | tableconstructor       { at $1 TableConst $1          }
 
-  | exp '+' exp   { sp $1 Binop (sp $2 Add   ) $1 $3 }
-  | exp '-' exp   { sp $1 Binop (sp $2 Sub   ) $1 $3 }
-  | exp '*' exp   { sp $1 Binop (sp $2 Mul   ) $1 $3 }
-  | exp '/' exp   { sp $1 Binop (sp $2 Div   ) $1 $3 }
-  | exp '//' exp  { sp $1 Binop (sp $2 IDiv  ) $1 $3 }
-  | exp '^' exp   { sp $1 Binop (sp $2 Exp   ) $1 $3 }
-  | exp '%' exp   { sp $1 Binop (sp $2 Mod   ) $1 $3 }
-  | exp '..' exp  { sp $1 Binop (sp $2 Concat) $1 $3 }
-  | exp '<'  exp  { sp $1 Binop (sp $2 LT    ) $1 $3 }
-  | exp '<=' exp  { sp $1 Binop (sp $2 LTE   ) $1 $3 }
-  | exp '>'  exp  { sp $1 Binop (sp $2 GT    ) $1 $3 }
-  | exp '>=' exp  { sp $1 Binop (sp $2 GTE   ) $1 $3 }
-  | exp '==' exp  { sp $1 Binop (sp $2 EQ    ) $1 $3 }
-  | exp '~=' exp  { sp $1 Binop (sp $2 NEQ   ) $1 $3 }
-  | exp 'and' exp { sp $1 Binop (sp $2 And   ) $1 $3 }
-  | exp 'or'  exp { sp $1 Binop (sp $2 Or    ) $1 $3 }
-  | exp '&' exp   { sp $1 Binop (sp $2 BAnd  ) $1 $3 }
-  | exp '|' exp   { sp $1 Binop (sp $2 BOr   ) $1 $3 }
-  | exp '~' exp   { sp $1 Binop (sp $2 BXor  ) $1 $3 }
-  | exp '<<' exp  { sp $1 Binop (sp $2 ShiftL) $1 $3 }
-  | exp '>>' exp  { sp $1 Binop (sp $2 ShiftR) $1 $3 }
+  | exp '+' exp   { at ($1,$3) Binop (at $2 Add   ) $1 $3 }
+  | exp '-' exp   { at ($1,$3) Binop (at $2 Sub   ) $1 $3 }
+  | exp '*' exp   { at ($1,$3) Binop (at $2 Mul   ) $1 $3 }
+  | exp '/' exp   { at ($1,$3) Binop (at $2 Div   ) $1 $3 }
+  | exp '//' exp  { at ($1,$3) Binop (at $2 IDiv  ) $1 $3 }
+  | exp '^' exp   { at ($1,$3) Binop (at $2 Exp   ) $1 $3 }
+  | exp '%' exp   { at ($1,$3) Binop (at $2 Mod   ) $1 $3 }
+  | exp '..' exp  { at ($1,$3) Binop (at $2 Concat) $1 $3 }
+  | exp '<'  exp  { at ($1,$3) Binop (at $2 LT    ) $1 $3 }
+  | exp '<=' exp  { at ($1,$3) Binop (at $2 LTE   ) $1 $3 }
+  | exp '>'  exp  { at ($1,$3) Binop (at $2 GT    ) $1 $3 }
+  | exp '>=' exp  { at ($1,$3) Binop (at $2 GTE   ) $1 $3 }
+  | exp '==' exp  { at ($1,$3) Binop (at $2 EQ    ) $1 $3 }
+  | exp '~=' exp  { at ($1,$3) Binop (at $2 NEQ   ) $1 $3 }
+  | exp 'and' exp { at ($1,$3) Binop (at $2 And   ) $1 $3 }
+  | exp 'or'  exp { at ($1,$3) Binop (at $2 Or    ) $1 $3 }
+  | exp '&' exp   { at ($1,$3) Binop (at $2 BAnd  ) $1 $3 }
+  | exp '|' exp   { at ($1,$3) Binop (at $2 BOr   ) $1 $3 }
+  | exp '~' exp   { at ($1,$3) Binop (at $2 BXor  ) $1 $3 }
+  | exp '<<' exp  { at ($1,$3) Binop (at $2 ShiftL) $1 $3 }
+  | exp '>>' exp  { at ($1,$3) Binop (at $2 ShiftR) $1 $3 }
 
-  | '-' exp %prec NEG        { sp $1 Unop (sp $1 Neg)        $2 }
-  | '~' exp %prec COMPLEMENT { sp $1 Unop (sp $1 Complement) $2 }
-  | 'not' exp                { sp $1 Unop (sp $1 Not)        $2 }
-  | '#'  exp                 { sp $1 Unop (sp $1 Len)        $2 }
+  | '-' exp %prec NEG        { at ($1,$2) Unop (at $1 Neg)        $2 }
+  | '~' exp %prec COMPLEMENT { at ($1,$2) Unop (at $1 Complement) $2 }
+  | 'not' exp                { at ($1,$2) Unop (at $1 Not)        $2 }
+  | '#'  exp                 { at ($1,$2) Unop (at $1 Len)        $2 }
 
-args ::                    { FunArg SourcePos                }
-  : '(' sepBy(exp,',') ')' { sp $1 Args $2                   }
-  | tableconstructor       { sp $1 TableArg $1               }
-  | literalString          { sp $1 StringArg (ltokLexeme $1) }
+args ::                    { FunArg SourceRange              }
+  : '(' sepBy(exp,',') ')' { at ($1,$3) Args $2              }
+  | tableconstructor       { at $1 TableArg $1               }
+  | literalString          { at $1 StringArg (ltokLexeme $1) }
 
-functiondef ::          { FunDef SourcePos }
-  : 'function' funcbody 'end' { sp $1 FunDef $2  }
-  | 'function' funcbody error {% noEndP $1 }
+functiondef ::                { FunDef SourceRange    }
+  : 'function' funcbody 'end' { at ($1,$3) FunDef $2  }
+  | 'function' funcbody error {% noEndP $1            }
 
-funcbody ::                     { FunBody SourcePos                  }
-  : '(' parlist ')' block { sp $1 FunBody (fst $2) (snd $2) $4 }
+funcbody ::               { FunBody SourceRange                     }
+  : '(' parlist ')' block { at ($1,$4) FunBody (fst $2) (snd $2) $4 }
 
-parlist ::              { ([Name SourcePos],Maybe SourcePos) }
-  : parnames1 ',' '...' { (reverse $1,Just (ltokPos $3) )     }
-  | parnames1           { (reverse $1,Nothing)               }
-  | '...'               { ([],Just (ltokPos $1))              }
-  |                     { ([],Nothing)                       }
+parlist ::              { ([Name SourceRange],Maybe SourceRange) }
+  : parnames1 ',' '...' { (reverse $1,getRange $3)               }
+  | parnames1           { (reverse $1,Nothing)                   }
+  | '...'               { ([], getRange $1)                      }
+  |                     { ([], Nothing)                          }
 
-parnames1 ::           { [Name SourcePos] }
-  : name               { [$1]             }
-  | parnames1 ',' name { $3 : $1          }
+parnames1 ::           { [Name SourceRange] }
+  : name               { [$1]               }
+  | parnames1 ',' name { $3 : $1            }
 
-tableconstructor ::                 { Table SourcePos          }
-  : '{'                         '}' { sp $1 Table []           }
-  | '{' fieldlist opt(fieldsep) '}' { sp $1 Table (reverse $2) }
+tableconstructor ::                 { Table SourceRange             }
+  : '{'                         '}' { at ($1,$2) Table []           }
+  | '{' fieldlist opt(fieldsep) '}' { at ($1,$3) Table (reverse $2) }
 
-fieldlist ::                  { [TableField SourcePos] }
-  : fieldlist fieldsep field  { $3 : $1                }
-  | field                     { [$1]                   }
+fieldlist ::                  { [TableField SourceRange] }
+  : fieldlist fieldsep field  { $3 : $1                  }
+  | field                     { [$1]                     }
 
-fieldsep :: { () }
-  : ','     { () }
-  | ';'     { () }
+fieldsep :: { LexToken }
+  : ','     { $1 }
+  | ';'     { $1 }
 
-field ::                { TableField SourcePos   }
-  : '[' exp ']' '=' exp { sp $1 ExpField $2 $5   }
-  | name        '=' exp { sp $1 NamedField $1 $3 }
-  |                 exp { sp $1 Field $1         }
+field ::                { TableField SourceRange      }
+  : '[' exp ']' '=' exp { at ($1,$5) ExpField $2 $5   }
+  | name        '=' exp { at ($1,$3) NamedField $1 $3 }
+  |                 exp { at $1      Field $1         }
 
-name ::   { Name SourcePos             }
-  : ident { sp $1 Name (ltokLexeme $1) }
+name ::   { Name SourceRange           }
+  : ident { at $1 Name (ltokLexeme $1) }
 
 {
 
-newtype Parser a = Parser { runParser :: [LexToken SourcePos] -> Either (SourcePos,String) a }
+newtype Parser a = Parser { runParser :: [LexToken] -> Either (SourceRange,String) a }
 
-chunk :: Parser (Block SourcePos)
+chunk :: Parser (Block SourceRange)
 chunk = Parser chunk_
 
-stat :: Parser (Stat SourcePos)
+stat :: Parser (Stat SourceRange)
 stat = Parser stat_
 
-exp :: Parser (Exp SourcePos)
+exp :: Parser (Exp SourceRange)
 exp = Parser exp_
 
 instance Functor Parser where
   fmap f (Parser p) = Parser (fmap (fmap f) p)
 
-errorP :: [LexToken SourcePos] -> Either (SourcePos,String) a
+errorP :: [LexToken] -> Either (SourceRange,String) a
 errorP ts =
   case ts of
-    [] -> Left (SourcePos "" (-1)(-1)(-1), "unexpected end of file")
-    LexToken { ltokPos = pos, ltokToken = t }:_ ->
-      Left (pos, "unexpected " ++ show t)
+    [] -> Left (fakeRng, "unexpected end of file")
+      where fake = SourcePos "" (-1)(-1)(-1)
+            fakeRng = SourceRange fake fake
+    LexToken { ltokRange = rng, ltokToken = t }:_ ->
+      Left (rng, "unexpected " ++ show t)
 
-noEndP :: LexToken SourcePos -> Either (SourcePos,String) a
-noEndP LexToken { ltokPos = pos, ltokToken = t } =
+noEndP :: LexToken -> Either (SourceRange,String) a
+noEndP LexToken { ltokRange = pos, ltokToken = t } =
   Left (pos, "unterminated " ++ show t)
 
-sp :: Annotated p => p SourcePos -> (SourcePos -> a) -> a
-sp x f = f (ann x)
-
-blockAnn :: [Stat SourcePos] -> Maybe [Exp SourcePos] -> SourcePos
-blockAnn xs mbys =
-  case map ann xs ++ maybe [] (map ann) mbys of
-    a : _ -> a
-    _     -> SourcePos "" 0 1 1
-
 showPos :: SourcePos -> String
-showPos p = "line: " ++ show (sourcePosLine p) ++
-            " column: " ++ show (sourcePosColumn p)
+showPos p = show (sourcePosLine p) ++ ":" ++ show (sourcePosColumn p)
+
+showRange :: SourceRange -> String
+showRange p = showPos (sourceFrom p) ++ "--" ++ showPos (sourceTo p)
 
 -- | Runs Lua lexer before parsing. Use @parseNamedText stat "name"@ to parse
 -- statements, and @parseText exp "name"@ to parse expressions.
@@ -316,7 +316,7 @@ parseNamedText ::
   Parser a ->
   String {- ^ name -} ->
   Text {- ^ chunk -} ->
-  Either (SourcePos, String) a
+  Either (SourceRange, String) a
 parseNamedText p n xs = runParser p (llexNamed n xs)
 
 -- | Runs Lua lexer before parsing. Use @parseText stat@ to parse
@@ -324,11 +324,68 @@ parseNamedText p n xs = runParser p (llexNamed n xs)
 parseText ::
   Parser a ->
   Text {- ^ chunk -} ->
-  Either (SourcePos, String) a
+  Either (SourceRange, String) a
 parseText p = parseNamedText p "=<string>"
 
 -- | Parse a Lua file. You can use @parseText chunk@ to parse a file from a string.
-parseFile :: FilePath -> IO (Either (SourcePos, String) (Block SourcePos))
+parseFile :: FilePath -> IO (Either (SourceRange, String) (Block SourceRange))
 parseFile fp = fmap (parseNamedText chunk fp) (Text.readFile fp)
+
+
+
+--------------------------------------------------------------------------------
+
+at :: HasRange a => a -> (SourceRange -> b) -> b
+at rng mk = mk $ fromMaybe fake $ getRange rng
+  where
+  none = SourcePos "" 0 1 1
+  fake = SourceRange { sourceFrom = none, sourceTo = none }
+
+class HasRange a where
+  getRange :: a -> Maybe SourceRange
+
+instance HasRange SourceRange where
+  getRange = Just
+
+instance HasRange LexToken where
+  getRange = Just . ltokRange
+
+instance HasRange a => HasRange (Maybe a) where
+  getRange x = getRange =<< x
+
+instance (HasRange a, HasRange b) => HasRange (a,b) where
+  getRange (x,y) =
+    case (getRange x, getRange y) of
+      (Nothing,Nothing) -> Nothing
+      (Just a, Nothing) -> Just a
+      (Nothing, Just a) -> Just a
+      (Just a, Just b)  ->
+        Just $! SourceRange { sourceFrom = sourceFrom a, sourceTo = sourceTo b }
+
+instance HasRange a => HasRange [a] where
+  getRange (x : xs) = getRange (x,xs)
+  getRange []       = Nothing
+
+instance HasRange a => HasRange (Stat  a)       where getRange = getRange . ann
+instance HasRange a => HasRange (Exp   a)       where getRange = getRange . ann
+instance HasRange a => HasRange (Var   a)       where getRange = getRange . ann
+instance HasRange a => HasRange (Binop a)       where getRange = getRange . ann
+instance HasRange a => HasRange (Unop  a)       where getRange = getRange . ann
+instance HasRange a => HasRange (PrefixExp a)   where getRange = getRange . ann
+instance HasRange a => HasRange (Table a)       where getRange = getRange . ann
+instance HasRange a => HasRange (TableField a)  where getRange = getRange . ann
+instance HasRange a => HasRange (Block a     )  where getRange = getRange . ann
+instance HasRange a => HasRange (FunName a)     where getRange = getRange . ann
+instance HasRange a => HasRange (FunDef a)      where getRange = getRange . ann
+instance HasRange a => HasRange (FunBody a)     where getRange = getRange . ann
+instance HasRange a => HasRange (FunCall a)     where getRange = getRange . ann
+instance HasRange a => HasRange (FunArg a)      where getRange = getRange . ann
+instance HasRange a => HasRange (Name a)        where getRange = getRange . ann
+
+
+
+
+
+
 
 }

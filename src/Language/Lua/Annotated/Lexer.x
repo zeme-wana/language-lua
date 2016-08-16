@@ -10,6 +10,7 @@ module Language.Lua.Annotated.Lexer
   , llexFile
   , LexToken(..)
   , SourcePos(..)
+  , SourceRange(..)
   , dropWhiteSpace
   ) where
 
@@ -80,13 +81,13 @@ tokens :-
     <0> @mantpart @exppart?                  { tok TokNum }
     <0> @hexprefix @mantparthex @expparthex? { tok TokNum }
 
-    <0> \'                   { enterSingleString }
+    <0> \'                   { enterString SingleQuote }
     <state_sstring> @charesc ;
     <state_sstring> $sqstr   ;
     <state_sstring> \'       { endMode }
 
     -- string literals
-    <0> \"                   { enterDoubleString }
+    <0> \"                   { enterString DoubleQuote }
     <state_dstring> @charesc ;
     <state_dstring> $dqstr   ;
     <state_dstring> \"       { endMode }
@@ -136,8 +137,10 @@ tokens :-
     <0> "<<"  { tok TokDLT }
     <0> ">>"  { tok TokDGT }
 
-    <0,state_sstring,state_dstring,state_lstring>
-       . | \n    { unexpectedChar }
+    <state_sstring,state_dstring> \ .  { invalidEsc }
+    <state_sstring,state_dstring> \ \n { unterminatedString }
+
+    <0> .                              { invalidChar }
 
 {
 
@@ -148,24 +151,28 @@ modeCode mode =
     NormalMode        -> 0
     CommentMode    {} -> state_comment
     QuoteMode      {} -> state_lstring
-    SingleQuoteMode{} -> state_sstring
-    DoubleQuoteMode{} -> state_dstring
+    StringMode SingleQuote _ _ -> state_sstring
+    StringMode DoubleQuote _ _ -> state_dstring
 
-scanner' :: AlexInput -> Mode -> [LexToken SourcePos]
+scanner' :: AlexInput -> Mode -> [LexToken]
 scanner' inp mode =
   case alexScanUser mode inp (modeCode mode) of
-    AlexEOF                   -> abortMode Nothing mode
+    AlexEOF                   -> checkEOF mode inp
     AlexError _               -> error "language-lua lexer internal error"
     AlexSkip inp' _           -> scanner' inp' mode
     AlexToken inp' len action ->
-       case action len inp mode of
+       case action inp inp' len mode of
          (mode', ts) -> ts ++ scanner' inp' mode'
 
-scanner :: String -> Text -> [LexToken SourcePos]
-scanner name str = scanner' (AlexInput (startPos name) str) NormalMode
+scanner :: String -> Text -> [LexToken]
+scanner name str = scanner' AlexInput { input_pos  = startPos name
+                                      , input_text = str
+                                      , input_prev = startPos name
+                                      }
+                            NormalMode
 
 -- | Lua lexer with default @=<string>@ name.
-llex :: Text {- ^ chunk -} -> [LexToken SourcePos]
+llex :: Text {- ^ chunk -} -> [LexToken]
 llex = llexNamed "=<string>"
 
 
@@ -173,7 +180,7 @@ llex = llexNamed "=<string>"
 llexNamed ::
   String {- ^ name -} ->
   Text   {- ^ chunk -} ->
-  [LexToken SourcePos]
+  [LexToken]
 llexNamed name chunk = dropWhiteSpace (llexNamedWithWhiteSpace name chunk)
 
 
@@ -181,12 +188,12 @@ llexNamed name chunk = dropWhiteSpace (llexNamedWithWhiteSpace name chunk)
 llexNamedWithWhiteSpace ::
   String {- ^ name -} ->
   Text   {- ^ chunk -} ->
-  [LexToken SourcePos]
+  [LexToken]
 llexNamedWithWhiteSpace name chunk = scanner name (dropSpecialComment chunk)
 
 
 -- | Run Lua lexer on a file.
-llexFile :: FilePath -> IO [LexToken SourcePos]
+llexFile :: FilePath -> IO [LexToken]
 llexFile fp = fmap (llexNamed fp) (Text.readFile fp)
 
 }
