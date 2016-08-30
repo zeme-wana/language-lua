@@ -214,7 +214,7 @@ regressions = testGroup "Regression tests"
         show (L.llex "'\\\"'") `deepseq` return ()
         show (L.llex "\"\\\'\"") `deepseq` return ()
     , testCase "Lexing Lua string: '\\\\\"'" $ do
-        let get t = (L.ltokToken t, L.ltokLexeme t)
+        let get t = (L.lexemeToken t, L.lexemeText t)
         assertEqual "String lexed wrong"
           [(T.TokSLit, "'\\\\\"'")]
           (map get (L.llex "'\\\\\"'"))

@@ -1,19 +1,17 @@
 {
 
 {-# OPTIONS_GHC -w #-}
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE TemplateHaskell, BangPatterns #-}
 
 module Language.Lua.Annotated.Lexer
   ( llex
   , llexNamed
   , llexNamedWithWhiteSpace
   , llexFile
-  , LexToken(..)
   , SourcePos(..)
   , SourceRange(..)
-  , showPos
-  , showRange
   , dropWhiteSpace
+  , Lexeme(..)
   ) where
 
 import           Data.Text (Text)
@@ -22,6 +20,7 @@ import qualified Data.Text.IO as Text
 
 import           Language.Lua.Token
 import           Language.Lua.LexerUtils
+import           AlexTools
 
 }
 
@@ -50,38 +49,38 @@ $longstr  = [ . \n ]                    -- valid character in a long string
 
 tokens :-
 
-    <0> $white+    { tok TokWhiteSpace }
+    <0> $white+    { lexeme TokWhiteSpace }
 
     -- keywords
-    <0> "and"      { tok TokAnd }
-    <0> "break"    { tok TokBreak }
-    <0> "do"       { tok TokDo }
-    <0> "else"     { tok TokElse }
-    <0> "elseif"   { tok TokElseIf }
-    <0> "end"      { tok TokEnd }
-    <0> "false"    { tok TokFalse }
-    <0> "for"      { tok TokFor }
-    <0> "function" { tok TokFunction }
-    <0> "goto"     { tok TokGoto }
-    <0> "if"       { tok TokIf }
-    <0> "in"       { tok TokIn }
-    <0> "local"    { tok TokLocal }
-    <0> "nil"      { tok TokNil }
-    <0> "not"      { tok TokNot }
-    <0> "or"       { tok TokOr }
-    <0> "repeat"   { tok TokRepeat }
-    <0> "return"   { tok TokReturn }
-    <0> "then"     { tok TokThen }
-    <0> "true"     { tok TokTrue }
-    <0> "until"    { tok TokUntil }
-    <0> "while"    { tok TokWhile }
+    <0> "and"      { lexeme TokAnd }
+    <0> "break"    { lexeme TokBreak }
+    <0> "do"       { lexeme TokDo }
+    <0> "else"     { lexeme TokElse }
+    <0> "elseif"   { lexeme TokElseIf }
+    <0> "end"      { lexeme TokEnd }
+    <0> "false"    { lexeme TokFalse }
+    <0> "for"      { lexeme TokFor }
+    <0> "function" { lexeme TokFunction }
+    <0> "goto"     { lexeme TokGoto }
+    <0> "if"       { lexeme TokIf }
+    <0> "in"       { lexeme TokIn }
+    <0> "local"    { lexeme TokLocal }
+    <0> "nil"      { lexeme TokNil }
+    <0> "not"      { lexeme TokNot }
+    <0> "or"       { lexeme TokOr }
+    <0> "repeat"   { lexeme TokRepeat }
+    <0> "return"   { lexeme TokReturn }
+    <0> "then"     { lexeme TokThen }
+    <0> "true"     { lexeme TokTrue }
+    <0> "until"    { lexeme TokUntil }
+    <0> "while"    { lexeme TokWhile }
 
     -- identifiers
-    <0> $letter $identletter* { tok TokIdent }
+    <0> $letter $identletter* { lexeme TokIdent }
 
     -- number literals
-    <0> @mantpart @exppart?                  { tok TokNum }
-    <0> @hexprefix @mantparthex @expparthex? { tok TokNum }
+    <0> @mantpart @exppart?                  { lexeme TokNum }
+    <0> @hexprefix @mantparthex @expparthex? { lexeme TokNum }
 
     <0> \'                   { enterString SingleQuote }
     <state_sstring> @charesc ;
@@ -105,39 +104,39 @@ tokens :-
     <state_comment> .*      { endMode }
 
     -- operators
-    <0> "+"   { tok TokPlus }
-    <0> "-"   { tok TokMinus }
-    <0> "*"   { tok TokStar }
-    <0> "/"   { tok TokSlash }
-    <0> "//"  { tok TokDSlash }
-    <0> "%"   { tok TokPercent }
-    <0> "^"   { tok TokExp }
-    <0> "#"   { tok TokSh }
-    <0> "=="  { tok TokEqual }
-    <0> "~="  { tok TokNotequal }
-    <0> "<="  { tok TokLEq }
-    <0> ">="  { tok TokGEq }
-    <0> "<"   { tok TokLT }
-    <0> ">"   { tok TokGT }
-    <0> "="   { tok TokAssign }
-    <0> "("   { tok TokLParen }
-    <0> ")"   { tok TokRParen }
-    <0> "{"   { tok TokLBrace }
-    <0> "}"   { tok TokRBrace }
-    <0> "["   { tok TokLBracket }
-    <0> "]"   { tok TokRBracket }
-    <0> "::"  { tok TokDColon }
-    <0> ";"   { tok TokSemic }
-    <0> ":"   { tok TokColon }
-    <0> ","   { tok TokComma }
-    <0> "."   { tok TokDot }
-    <0> ".."  { tok TokDDot }
-    <0> "..." { tok TokEllipsis }
-    <0> "&"   { tok TokAmpersand }
-    <0> "|"   { tok TokPipe }
-    <0> "~"   { tok TokTilde }
-    <0> "<<"  { tok TokDLT }
-    <0> ">>"  { tok TokDGT }
+    <0> "+"   { lexeme TokPlus }
+    <0> "-"   { lexeme TokMinus }
+    <0> "*"   { lexeme TokStar }
+    <0> "/"   { lexeme TokSlash }
+    <0> "//"  { lexeme TokDSlash }
+    <0> "%"   { lexeme TokPercent }
+    <0> "^"   { lexeme TokExp }
+    <0> "#"   { lexeme TokSh }
+    <0> "=="  { lexeme TokEqual }
+    <0> "~="  { lexeme TokNotequal }
+    <0> "<="  { lexeme TokLEq }
+    <0> ">="  { lexeme TokGEq }
+    <0> "<"   { lexeme TokLT }
+    <0> ">"   { lexeme TokGT }
+    <0> "="   { lexeme TokAssign }
+    <0> "("   { lexeme TokLParen }
+    <0> ")"   { lexeme TokRParen }
+    <0> "{"   { lexeme TokLBrace }
+    <0> "}"   { lexeme TokRBrace }
+    <0> "["   { lexeme TokLBracket }
+    <0> "]"   { lexeme TokRBracket }
+    <0> "::"  { lexeme TokDColon }
+    <0> ";"   { lexeme TokSemic }
+    <0> ":"   { lexeme TokColon }
+    <0> ","   { lexeme TokComma }
+    <0> "."   { lexeme TokDot }
+    <0> ".."  { lexeme TokDDot }
+    <0> "..." { lexeme TokEllipsis }
+    <0> "&"   { lexeme TokAmpersand }
+    <0> "|"   { lexeme TokPipe }
+    <0> "~"   { lexeme TokTilde }
+    <0> "<<"  { lexeme TokDLT }
+    <0> ">>"  { lexeme TokDGT }
 
     <state_sstring,state_dstring> \\ .  { invalidEsc }
     <state_sstring,state_dstring> \n { unterminatedString }
@@ -146,35 +145,23 @@ tokens :-
 
 {
 
--- | Map a lexer 'Mode' an an alex state code.
-modeCode :: Mode -> Int
-modeCode mode =
-  case mode of
-    NormalMode        -> 0
-    CommentMode    {} -> state_comment
-    QuoteMode      {} -> state_lstring
-    StringMode SingleQuote _ _ -> state_sstring
-    StringMode DoubleQuote _ _ -> state_dstring
+lexerTools :: Input -> [Lexeme Token]
+lexerTools = $makeLexer LexerConfig
+  { lexerInitialState = NormalMode
+  , lexerEOF = \_ -> []
+  , lexerStateMode = \mode ->
+       case mode of
+         NormalMode        -> 0
+         CommentMode    {} -> state_comment
+         QuoteMode      {} -> state_lstring
+         StringMode SingleQuote _ _ -> state_sstring
+         StringMode DoubleQuote _ _ -> state_dstring
+  }
 
-scanner' :: AlexInput -> Mode -> [LexToken]
-scanner' inp mode =
-  case alexScanUser mode inp (modeCode mode) of
-    AlexEOF                   -> checkEOF mode inp
-    AlexError _               -> error "language-lua lexer internal error"
-    AlexSkip inp' _           -> scanner' inp' mode
-    AlexToken inp' len action ->
-       case action inp inp' len mode of
-         (mode', ts) -> ts ++ scanner' inp' mode'
-
-scanner :: String -> Text -> [LexToken]
-scanner name str = scanner' AlexInput { input_pos  = startPos name
-                                      , input_text = str
-                                      , input_prev = startPos name
-                                      }
-                            NormalMode
+alexGetByte = makeAlexGetByte (fromIntegral . min 127 . fromEnum)
 
 -- | Lua lexer with default @=<string>@ name.
-llex :: Text {- ^ chunk -} -> [LexToken]
+llex :: Text {- ^ chunk -} -> [Lexeme Token]
 llex = llexNamed "=<string>"
 
 
@@ -182,7 +169,7 @@ llex = llexNamed "=<string>"
 llexNamed ::
   String {- ^ name -} ->
   Text   {- ^ chunk -} ->
-  [LexToken]
+  [Lexeme Token]
 llexNamed name chunk = dropWhiteSpace (llexNamedWithWhiteSpace name chunk)
 
 
@@ -190,12 +177,13 @@ llexNamed name chunk = dropWhiteSpace (llexNamedWithWhiteSpace name chunk)
 llexNamedWithWhiteSpace ::
   String {- ^ name -} ->
   Text   {- ^ chunk -} ->
-  [LexToken]
-llexNamedWithWhiteSpace name chunk = scanner name (dropSpecialComment chunk)
+  [Lexeme Token]
+llexNamedWithWhiteSpace _name chunk =
+   lexerTools (initialInput (dropSpecialComment chunk))
 
 
 -- | Run Lua lexer on a file.
-llexFile :: FilePath -> IO [LexToken]
+llexFile :: FilePath -> IO [Lexeme Token]
 llexFile fp = fmap (llexNamed fp) (Text.readFile fp)
 
 }
