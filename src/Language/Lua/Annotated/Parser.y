@@ -82,7 +82,8 @@ import           Language.Lua.Annotated.Syntax
 'true'        { LexToken { ltokToken = TokTrue      } }
 'until'       { LexToken { ltokToken = TokUntil     } }
 'while'       { LexToken { ltokToken = TokWhile     } }
-numeral       { LexToken { ltokToken = TokNum       } }
+integer       { LexToken { ltokToken = TokInt       } }
+float         { LexToken { ltokToken = TokFloat     } }
 literalString { LexToken { ltokToken = TokSLit      } }
 ident         { LexToken { ltokToken = TokIdent     } }
 
@@ -199,7 +200,8 @@ exp ::                     { Exp SourceRange              }
   : 'nil'                  { at $1 Nil                    }
   | 'false'                { at $1 Bool False             }
   | 'true'                 { at $1 Bool True              }
-  | numeral                { at $1 Number (ltokLexeme $1) }
+  | integer                { at $1 Number IntNum (ltokLexeme $1) }
+  | float                  { at $1 Number FloatNum (ltokLexeme $1) }
   | literalString          { at $1 String (ltokLexeme $1) }
   | '...'                  { at $1 Vararg                 }
   | functiondef            { at $1 EFunDef $1             }

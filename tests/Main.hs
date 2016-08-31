@@ -240,7 +240,7 @@ regressions = testGroup "Regression tests"
         assertParseFailure (P.parseText P.chunk "-- [[ line1\nline2 ]]")
     , testCase "Print EmptyStat for disambiguation" $ ppChunk "f();(f)()"
     , testCase "printing negation chains" $
-        let exp = Unop Neg (Unop Neg (Unop Neg (Number "120")))
+        let exp = Unop Neg (Unop Neg (Unop Neg (Number IntNum "120")))
          in assertEqual "Parsed and/or printed wrong"
                         (Right exp)
                         (P.parseText P.exp (Text.pack (show (pprint exp))))
@@ -335,7 +335,7 @@ instance Arbitrary Exp where
   arbitrary = oneof
     [ return Nil
     , Bool <$> arbitrary
-    , Number . Text.pack <$> listOf1 (elements ['0'..'9']) -- TODO: implement number lexer tests
+    , Number IntNum . Text.pack <$> listOf1 (elements ['0'..'9']) -- TODO: implement number lexer tests
     , String . Text.pack <$> arbitraryLuaString
     , return Vararg
     , EFunDef <$> arbitrary

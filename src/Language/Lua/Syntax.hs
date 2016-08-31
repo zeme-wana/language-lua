@@ -1,13 +1,18 @@
 {-# LANGUAGE DeriveDataTypeable, DeriveGeneric #-}
 
 -- | Lua 5.3 syntax tree, as specified in <http://www.lua.org/manual/5.3/manual.html#9>.
-module Language.Lua.Syntax where
+module Language.Lua.Syntax
+  ( module Language.Lua.Syntax
+  , NumberType(..)
+  ) where
 
 import           Control.DeepSeq (NFData)
 import           Data.Data       (Data, Typeable)
 import           Data.Text       (Text)
 import           GHC.Generics    (Generic)
 import           Prelude         hiding (EQ, GT, LT)
+
+import           Language.Lua.Utils(NumberType(..))
 
 newtype Name = Name Text
   deriving (Show, Eq, Data, Typeable, Generic)
@@ -33,7 +38,7 @@ data Stat
 data Exp
     = Nil
     | Bool Bool
-    | Number Text
+    | Number NumberType Text
     | String Text
     | Vararg -- ^/.../
     | EFunDef FunBody -- ^/function (..) .. end/

@@ -80,8 +80,10 @@ tokens :-
     <0> $letter $identletter* { tok TokIdent }
 
     -- number literals
-    <0> @mantpart @exppart?                  { tok TokNum }
-    <0> @hexprefix @mantparthex @expparthex? { tok TokNum }
+    <0> @digits                              { tok TokInt   }
+    <0> @hexprefix @digits                   { tok TokInt   }
+    <0> @mantpart @exppart?                  { tok TokFloat }
+    <0> @hexprefix @mantparthex @expparthex? { tok TokFloat }
 
     <0> \'                   { enterString SingleQuote }
     <state_sstring> @charesc ;

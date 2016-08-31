@@ -32,7 +32,7 @@ sStat (A.EmptyStat _) = EmptyStat
 sExp :: A.Exp a -> Exp
 sExp (A.Nil _) = Nil
 sExp (A.Bool _ b) = Bool b
-sExp (A.Number _ n) = Number n
+sExp (A.Number _ n t) = Number n t
 sExp (A.String _ s) = String s
 sExp (A.Vararg _) = Vararg
 sExp (A.EFunDef _ fd) = EFunDef (sFunDef fd)

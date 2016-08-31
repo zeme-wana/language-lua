@@ -52,7 +52,7 @@ instance LPretty Bool where
 instance LPretty Exp where
     pprint' _ Nil            = text "nil"
     pprint' _ (Bool s)       = pprint s
-    pprint' _ (Number n)     = text (Text.unpack n)
+    pprint' _ (Number _ n)   = text (Text.unpack n)
     pprint' _ (String s)     = text (Text.unpack s)
     pprint' _ Vararg         = text "..."
     pprint' _ (EFunDef f)    = pprint f

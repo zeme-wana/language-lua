@@ -2,13 +2,18 @@
 
 -- | Lua 5.3 syntax tree, as specified in <http://www.lua.org/manual/5.3/manual.html#9>.
 -- Annotation implementation is inspired by haskell-src-exts.
-module Language.Lua.Annotated.Syntax where
+module Language.Lua.Annotated.Syntax
+  ( module Language.Lua.Annotated.Syntax
+  , NumberType(..)
+  ) where
 
 import           Control.DeepSeq (NFData)
 import           Data.Data       (Data, Typeable)
 import           Data.Text       (Text)
 import           GHC.Generics    (Generic)
 import           Prelude         hiding (EQ, GT, LT)
+
+import           Language.Lua.Utils(NumberType(..))
 
 data Name a = Name a Text deriving (Show, Eq, Functor, Data, Typeable, Generic)
 
@@ -33,7 +38,7 @@ data Stat a
 data Exp a
     = Nil a
     | Bool a Bool
-    | Number a Text
+    | Number a NumberType Text
     | String a Text
     | Vararg a -- ^/.../
     | EFunDef a (FunDef a) -- ^/function (..) .. end/
@@ -141,7 +146,7 @@ instance Annotated Stat where
 instance Annotated Exp where
     ann (Nil a) = a
     ann (Bool a _) = a
-    ann (Number a _) = a
+    ann (Number a _ _) = a
     ann (String a _) = a
     ann (Vararg a) = a
     ann (EFunDef a _) = a
@@ -152,7 +157,7 @@ instance Annotated Exp where
 
     amap f (Nil a) = Nil (f a)
     amap f (Bool a x1) = Bool (f a) x1
-    amap f (Number a x1) = Number (f a) x1
+    amap f (Number a x1 x2) = Number (f a) x1 x2
     amap f (String a x1) = String (f a) x1
     amap f (Vararg a) = Vararg (f a)
     amap f (EFunDef a x1) = EFunDef (f a) x1

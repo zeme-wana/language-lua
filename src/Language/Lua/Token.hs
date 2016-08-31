@@ -59,7 +59,8 @@ data Token
   | TokUntil              -- ^until
   | TokWhile              -- ^while
 
-  | TokNum                -- ^number constant
+  | TokFloat              -- ^floating point number constant
+  | TokInt                -- ^integer number constant
   | TokSLit               -- ^string constant
   | TokIdent              -- ^identifier
 
@@ -132,7 +133,8 @@ instance Show Token where
     show TokWhiteSpace    = "white_space"
     show TokComment       = "comment"
 
-    show TokNum           = "number"
+    show TokFloat         = "float"
+    show TokInt           = "int"
     show TokSLit          = "string"
     show TokIdent         = "identifier"
 

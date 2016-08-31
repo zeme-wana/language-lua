@@ -3,7 +3,7 @@ Name:                language-lua
 Description:
     Lua 5.3 lexer, parser and pretty-printer.
 
-Version:             0.10.0
+Version:             0.11.0
 Synopsis:            Lua parser and pretty-printer
 Homepage:            http://github.com/glguy/language-lua
 Bug-reports:         http://github.com/glguy/language-lua/issues
@@ -45,7 +45,8 @@ Library
                      Language.Lua.Annotated.Simplify
 
   Other-modules:     Text.PrettyPrint.Leijen,
-                     Language.Lua.LexerUtils
+                     Language.Lua.LexerUtils,
+                     Language.Lua.Utils
 
   Build-depends:     base >= 4.5 && < 4.10,
                      deepseq,
