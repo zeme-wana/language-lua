@@ -18,74 +18,75 @@ import           Data.Maybe(fromMaybe)
 import           Data.Text (Text)
 import qualified Data.Text.IO as Text
 
-import           Language.Lua.Token           (Token(..))
+import           Language.Lua.Token (Token(..))
 import           Language.Lua.Annotated.Lexer
-                    (SourcePos(..), SourceRange(..), LexToken(..), llexNamed)
+                    (SourcePos(..), SourceRange(..), Lexeme(..), llexNamed)
 import           Language.Lua.Annotated.Syntax
+import qualified AlexTools
 
 }
 
-%tokentype    { LexToken }
+%tokentype    { Lexeme Token }
 %token
-'+'           { LexToken { ltokToken = TokPlus      } }
-'-'           { LexToken { ltokToken = TokMinus     } }
-'*'           { LexToken { ltokToken = TokStar      } }
-'/'           { LexToken { ltokToken = TokSlash     } }
-'//'          { LexToken { ltokToken = TokDSlash    } }
-'%'           { LexToken { ltokToken = TokPercent   } }
-'^'           { LexToken { ltokToken = TokExp       } }
-'#'           { LexToken { ltokToken = TokSh        } }
-'=='          { LexToken { ltokToken = TokEqual     } }
-'~='          { LexToken { ltokToken = TokNotequal  } }
-'<='          { LexToken { ltokToken = TokLEq       } }
-'>='          { LexToken { ltokToken = TokGEq       } }
-'<'           { LexToken { ltokToken = TokLT        } }
-'>'           { LexToken { ltokToken = TokGT        } }
-'&'           { LexToken { ltokToken = TokAmpersand } }
-'~'           { LexToken { ltokToken = TokTilde     } }
-'|'           { LexToken { ltokToken = TokPipe      } }
-'>>'          { LexToken { ltokToken = TokDGT       } }
-'<<'          { LexToken { ltokToken = TokDLT       } }
-'='           { LexToken { ltokToken = TokAssign    } }
-'('           { LexToken { ltokToken = TokLParen    } }
-')'           { LexToken { ltokToken = TokRParen    } }
-'{'           { LexToken { ltokToken = TokLBrace    } }
-'}'           { LexToken { ltokToken = TokRBrace    } }
-'['           { LexToken { ltokToken = TokLBracket  } }
-']'           { LexToken { ltokToken = TokRBracket  } }
-'::'          { LexToken { ltokToken = TokDColon    } }
-';'           { LexToken { ltokToken = TokSemic     } }
-':'           { LexToken { ltokToken = TokColon     } }
-','           { LexToken { ltokToken = TokComma     } }
-'.'           { LexToken { ltokToken = TokDot       } }
-'..'          { LexToken { ltokToken = TokDDot      } }
-'...'         { LexToken { ltokToken = TokEllipsis  } }
-'and'         { LexToken { ltokToken = TokAnd       } }
-'break'       { LexToken { ltokToken = TokBreak     } }
-'do'          { LexToken { ltokToken = TokDo        } }
-'else'        { LexToken { ltokToken = TokElse      } }
-'elseif'      { LexToken { ltokToken = TokElseIf    } }
-'end'         { LexToken { ltokToken = TokEnd       } }
-'false'       { LexToken { ltokToken = TokFalse     } }
-'for'         { LexToken { ltokToken = TokFor       } }
-'function'    { LexToken { ltokToken = TokFunction  } }
-'goto'        { LexToken { ltokToken = TokGoto      } }
-'if'          { LexToken { ltokToken = TokIf        } }
-'in'          { LexToken { ltokToken = TokIn        } }
-'local'       { LexToken { ltokToken = TokLocal     } }
-'nil'         { LexToken { ltokToken = TokNil       } }
-'not'         { LexToken { ltokToken = TokNot       } }
-'or'          { LexToken { ltokToken = TokOr        } }
-'repeat'      { LexToken { ltokToken = TokRepeat    } }
-'return'      { LexToken { ltokToken = TokReturn    } }
-'then'        { LexToken { ltokToken = TokThen      } }
-'true'        { LexToken { ltokToken = TokTrue      } }
-'until'       { LexToken { ltokToken = TokUntil     } }
-'while'       { LexToken { ltokToken = TokWhile     } }
-integer       { LexToken { ltokToken = TokInt       } }
-float         { LexToken { ltokToken = TokFloat     } }
-literalString { LexToken { ltokToken = TokSLit      } }
-ident         { LexToken { ltokToken = TokIdent     } }
+'+'           { Lexeme { lexemeToken = TokPlus      } }
+'-'           { Lexeme { lexemeToken = TokMinus     } }
+'*'           { Lexeme { lexemeToken = TokStar      } }
+'/'           { Lexeme { lexemeToken = TokSlash     } }
+'//'          { Lexeme { lexemeToken = TokDSlash    } }
+'%'           { Lexeme { lexemeToken = TokPercent   } }
+'^'           { Lexeme { lexemeToken = TokExp       } }
+'#'           { Lexeme { lexemeToken = TokSh        } }
+'=='          { Lexeme { lexemeToken = TokEqual     } }
+'~='          { Lexeme { lexemeToken = TokNotequal  } }
+'<='          { Lexeme { lexemeToken = TokLEq       } }
+'>='          { Lexeme { lexemeToken = TokGEq       } }
+'<'           { Lexeme { lexemeToken = TokLT        } }
+'>'           { Lexeme { lexemeToken = TokGT        } }
+'&'           { Lexeme { lexemeToken = TokAmpersand } }
+'~'           { Lexeme { lexemeToken = TokTilde     } }
+'|'           { Lexeme { lexemeToken = TokPipe      } }
+'>>'          { Lexeme { lexemeToken = TokDGT       } }
+'<<'          { Lexeme { lexemeToken = TokDLT       } }
+'='           { Lexeme { lexemeToken = TokAssign    } }
+'('           { Lexeme { lexemeToken = TokLParen    } }
+')'           { Lexeme { lexemeToken = TokRParen    } }
+'{'           { Lexeme { lexemeToken = TokLBrace    } }
+'}'           { Lexeme { lexemeToken = TokRBrace    } }
+'['           { Lexeme { lexemeToken = TokLBracket  } }
+']'           { Lexeme { lexemeToken = TokRBracket  } }
+'::'          { Lexeme { lexemeToken = TokDColon    } }
+';'           { Lexeme { lexemeToken = TokSemic     } }
+':'           { Lexeme { lexemeToken = TokColon     } }
+','           { Lexeme { lexemeToken = TokComma     } }
+'.'           { Lexeme { lexemeToken = TokDot       } }
+'..'          { Lexeme { lexemeToken = TokDDot      } }
+'...'         { Lexeme { lexemeToken = TokEllipsis  } }
+'and'         { Lexeme { lexemeToken = TokAnd       } }
+'break'       { Lexeme { lexemeToken = TokBreak     } }
+'do'          { Lexeme { lexemeToken = TokDo        } }
+'else'        { Lexeme { lexemeToken = TokElse      } }
+'elseif'      { Lexeme { lexemeToken = TokElseIf    } }
+'end'         { Lexeme { lexemeToken = TokEnd       } }
+'false'       { Lexeme { lexemeToken = TokFalse     } }
+'for'         { Lexeme { lexemeToken = TokFor       } }
+'function'    { Lexeme { lexemeToken = TokFunction  } }
+'goto'        { Lexeme { lexemeToken = TokGoto      } }
+'if'          { Lexeme { lexemeToken = TokIf        } }
+'in'          { Lexeme { lexemeToken = TokIn        } }
+'local'       { Lexeme { lexemeToken = TokLocal     } }
+'nil'         { Lexeme { lexemeToken = TokNil       } }
+'not'         { Lexeme { lexemeToken = TokNot       } }
+'or'          { Lexeme { lexemeToken = TokOr        } }
+'repeat'      { Lexeme { lexemeToken = TokRepeat    } }
+'return'      { Lexeme { lexemeToken = TokReturn    } }
+'then'        { Lexeme { lexemeToken = TokThen      } }
+'true'        { Lexeme { lexemeToken = TokTrue      } }
+'until'       { Lexeme { lexemeToken = TokUntil     } }
+'while'       { Lexeme { lexemeToken = TokWhile     } }
+integer       { Lexeme { lexemeToken = TokInt       } }
+float         { Lexeme { lexemeToken = TokFloat     } }
+literalString { Lexeme { lexemeToken = TokSLit      } }
+ident         { Lexeme { lexemeToken = TokIdent     } }
 
 %monad { Either (SourceRange, String) }
 %error { errorP }
@@ -200,9 +201,9 @@ exp ::                     { Exp SourceRange              }
   : 'nil'                  { at $1 Nil                    }
   | 'false'                { at $1 Bool False             }
   | 'true'                 { at $1 Bool True              }
-  | integer                { at $1 Number IntNum (ltokLexeme $1) }
-  | float                  { at $1 Number FloatNum (ltokLexeme $1) }
-  | literalString          { at $1 String (ltokLexeme $1) }
+  | integer                { at $1 Number IntNum (lexemeText $1) }
+  | float                  { at $1 Number FloatNum (lexemeText $1) }
+  | literalString          { at $1 String (lexemeText $1) }
   | '...'                  { at $1 Vararg                 }
   | functiondef            { at $1 EFunDef $1             }
   | prefixexp %prec EXP    { at $1 PrefixExp $1           }
@@ -238,7 +239,7 @@ exp ::                     { Exp SourceRange              }
 args ::                    { FunArg SourceRange              }
   : '(' sepBy(exp,',') ')' { at ($1,$3) Args $2              }
   | tableconstructor       { at $1 TableArg $1               }
-  | literalString          { at $1 StringArg (ltokLexeme $1) }
+  | literalString          { at $1 StringArg (lexemeText $1) }
 
 functiondef ::                { FunDef SourceRange    }
   : 'function' funcbody 'end' { at ($1,$3) FunDef $2  }
@@ -265,7 +266,7 @@ fieldlist ::                  { [TableField SourceRange] }
   : fieldlist fieldsep field  { $3 : $1                  }
   | field                     { [$1]                     }
 
-fieldsep :: { LexToken }
+fieldsep :: { Lexeme Token }
   : ','     { $1 }
   | ';'     { $1 }
 
@@ -275,14 +276,14 @@ field ::                { TableField SourceRange      }
   |                 exp { at $1      Field $1         }
 
 name ::   { Name SourceRange           }
-  : ident { at $1 Name (ltokLexeme $1) }
+  : ident { at $1 Name (lexemeText $1) }
 
 {
 
-newtype Parser a = Parser ([LexToken] -> Either (SourceRange,String) a)
+newtype Parser a = Parser ([Lexeme Token] -> Either (SourceRange,String) a)
 
 -- | Parse a stream of tokens.
-parseTokens :: Parser a -> [LexToken] -> Either (SourceRange,String) a
+parseTokens :: Parser a -> [Lexeme Token] -> Either (SourceRange,String) a
 parseTokens (Parser p) = p
 
 chunk :: Parser (Block SourceRange)
@@ -297,17 +298,17 @@ exp = Parser exp_
 instance Functor Parser where
   fmap f (Parser p) = Parser (fmap (fmap f) p)
 
-errorP :: [LexToken] -> Either (SourceRange,String) a
+errorP :: [Lexeme Token] -> Either (SourceRange,String) a
 errorP ts =
   case ts of
     [] -> Left (fakeRng, "unexpected end of file")
-      where fake = SourcePos "" (-1)(-1)(-1)
+      where fake = SourcePos (-1)(-1)(-1)
             fakeRng = SourceRange fake fake
-    LexToken { ltokRange = rng, ltokToken = t }:_ ->
+    Lexeme { lexemeRange = rng, lexemeToken = t }:_ ->
       Left (rng, "unexpected " ++ show t)
 
-noEndP :: LexToken -> Either (SourceRange,String) a
-noEndP LexToken { ltokRange = pos, ltokToken = t } =
+noEndP :: Lexeme Token -> Either (SourceRange,String) a
+noEndP Lexeme { lexemeRange = pos, lexemeToken = t } =
   Left (pos, "unterminated " ++ show t)
 
 -- | Runs Lua lexer before parsing. Use @parseNamedText stat "name"@ to parse
@@ -338,7 +339,7 @@ parseFile fp = fmap (parseNamedText chunk fp) (Text.readFile fp)
 at :: HasRange a => a -> (SourceRange -> b) -> b
 at rng mk = mk $ fromMaybe fake $ getRange rng
   where
-  none = SourcePos "" 0 1 1
+  none = SourcePos 0 1 1
   fake = SourceRange { sourceFrom = none, sourceTo = none }
 
 class HasRange a where
@@ -347,8 +348,8 @@ class HasRange a where
 instance HasRange SourceRange where
   getRange = Just
 
-instance HasRange LexToken where
-  getRange = Just . ltokRange
+instance HasRange (Lexeme a) where
+  getRange = Just . AlexTools.range
 
 instance HasRange a => HasRange (Maybe a) where
   getRange x = getRange =<< x
