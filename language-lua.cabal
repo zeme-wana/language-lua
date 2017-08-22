@@ -44,7 +44,7 @@ Library
 
   Other-modules:     Text.PrettyPrint.Leijen
 
-  Build-depends:     base >= 4.5 && < 4.9,
+  Build-depends:     base >= 4.5 && < 4.11,
                      deepseq,
                      array >= 0.4 && < 0.6,
                      mtl >= 2.0 && < 2.3,
@@ -59,7 +59,7 @@ Test-Suite tests
   Type:              exitcode-stdio-1.0
   Hs-source-dirs:    tests
   Main-is:           Main.hs
-  Build-depends:     base >= 4.5 && < 4.9,
+  Build-depends:     base >= 4.5 && < 4.11,
                      deepseq,
                      directory,
                      filepath,
