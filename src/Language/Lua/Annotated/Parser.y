@@ -16,6 +16,7 @@ import           Control.Monad (liftM,ap)
 import           Prelude hiding (LT,GT,EQ,exp)
 import           Data.Maybe(fromMaybe)
 import           Data.Text (Text)
+import qualified Data.Text as Text
 import qualified Data.Text.IO as Text
 
 import           Language.Lua.Token (Token(..))
@@ -302,7 +303,7 @@ errorP :: [Lexeme Token] -> Either (SourceRange,String) a
 errorP ts =
   case ts of
     [] -> Left (fakeRng, "unexpected end of file")
-      where fake = SourcePos (-1)(-1)(-1)
+      where fake = SourcePos (-1)(-1)(-1) (Text.pack "(fake pos)")
             fakeRng = SourceRange fake fake
     Lexeme { lexemeRange = rng, lexemeToken = t }:_ ->
       Left (rng, "unexpected " ++ show t)
@@ -339,7 +340,7 @@ parseFile fp = fmap (parseNamedText chunk fp) (Text.readFile fp)
 at :: HasRange a => a -> (SourceRange -> b) -> b
 at rng mk = mk $ fromMaybe fake $ getRange rng
   where
-  none = SourcePos 0 1 1
+  none = SourcePos 0 1 1 (Text.pack "(nowehere)")
   fake = SourceRange { sourceFrom = none, sourceTo = none }
 
 class HasRange a where

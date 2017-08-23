@@ -180,8 +180,8 @@ llexNamedWithWhiteSpace ::
   String {- ^ name -} ->
   Text   {- ^ chunk -} ->
   [Lexeme Token]
-llexNamedWithWhiteSpace _name chunk =
-   lexerTools (initialInput (dropSpecialComment chunk))
+llexNamedWithWhiteSpace name chunk =
+   lexerTools (initialInput (Text.pack name) (dropSpecialComment chunk))
 
 
 -- | Run Lua lexer on a file.
