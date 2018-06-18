@@ -13,7 +13,9 @@ module Language.Lua.PrettyPrinter
   , LPretty
   ) where
 
-#if MIN_VERSION_base(4,8,0)
+#if MIN_VERSION_base(4,11,0)
+import           Prelude                 hiding (EQ, GT, LT, (<$>), (<>))
+#elif MIN_VERSION_base(4,8,0)
 import           Prelude                 hiding (EQ, GT, LT, (<$>))
 #else
 import           Prelude                 hiding (EQ, GT, LT)

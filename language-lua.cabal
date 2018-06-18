@@ -48,7 +48,7 @@ Library
                      Language.Lua.LexerUtils,
                      Language.Lua.Utils
 
-  Build-depends:     base >= 4.5 && < 4.11,
+  Build-depends:     base >= 4.5 && < 4.12,
                      deepseq,
                      array >= 0.4 && < 0.6,
                      bytestring >= 0.10 && < 0.11,
@@ -59,14 +59,12 @@ Library
 
   ghc-options:       -Wall
 
-  default-language:  Haskell2010
-
 Test-Suite tests
   Type:              exitcode-stdio-1.0
   Default-language:  Haskell2010
   Hs-source-dirs:    tests
   Main-is:           Main.hs
-  Build-depends:     base >= 4.5 && < 4.11,
+  Build-depends:     base >= 4.5 && < 4.12,
                      deepseq,
                      directory,
                      filepath,
@@ -79,8 +77,6 @@ Test-Suite tests
                      tasty-quickcheck
 
   ghc-options:       -Wall
-
-  default-language:  Haskell2010
 
 Benchmark bench
   type:              exitcode-stdio-1.0
@@ -95,5 +91,3 @@ Benchmark bench
                      filepath,
                      text,
                      language-lua
-
-  default-language:  Haskell2010

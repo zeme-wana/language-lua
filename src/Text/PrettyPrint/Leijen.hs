@@ -121,7 +121,9 @@ module Text.PrettyPrint.Leijen (
         ) where
 
 import System.IO (Handle,hPutStr,hPutChar,stdout)
-#if MIN_VERSION_base(4,8,0)
+#if MIN_VERSION_base(4,11,0)
+import Prelude hiding ((<>),(<$>))
+#elif MIN_VERSION_base(4,8,0)
 import Prelude hiding ((<$>))
 #endif
 
