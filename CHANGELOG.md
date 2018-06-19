@@ -1,5 +1,10 @@
 ## Changelog
 
+#### 0.11.0
+
+- Migrates custom lexer logic to `alex-tools` package
+- Floating-point and integers distinguished in Exp type
+
 #### 0.10.0
 
 - Track the end positions of tokens and the AST in addition to the start
