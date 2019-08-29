@@ -41,7 +41,7 @@ data StringMode = SingleQuote | DoubleQuote
 -- the closing character for a string.
 unterminatedString :: Action Mode [Lexeme Token]
 unterminatedString =
-  do StringMode _strTy _errs inp0 <- getLexerState
+  do ~(StringMode _strTy _errs inp0) <- getLexerState
      setLexerState NormalMode
      longToken inp0 TokUntermString
 
@@ -57,7 +57,7 @@ invalidEsc :: Action Mode [Lexeme Token]
 invalidEsc =
   do inp1 <- startInput
      inp2 <- endInput
-     StringMode m errs inp0 <- getLexerState
+     ~(StringMode m errs inp0) <- getLexerState
      let err = SourceRange
                  { sourceFrom = inputPos inp1
                  , sourceTo   = inputPrev inp2
