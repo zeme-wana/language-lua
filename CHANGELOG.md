@@ -1,5 +1,9 @@
 ## Changelog
 
+#### 0.11.0.1
+
+- Update to work with newer base
+
 #### 0.11.0
 
 - Migrates custom lexer logic to `alex-tools` package
